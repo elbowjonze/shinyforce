@@ -8,12 +8,15 @@ master_frame <<- data.frame("char" = c('Alex', 'Ivan'),
                             "attk" = c(1, 3)
 )
 
+alex <- readPNG('/srv/shiny-server/shinyforce/sprites/alex_clear.png')
+ivan <- readPNG('/srv/shiny-server/shinyforce/sprites/ivan_clear.png')
 
 ## play grid - defined as ggplot polygons
+grid_size <- 16  ## number of cells in each row/col
 gpoly <- NULL
-for(x in 0:7)
+for(x in 0:(grid_size - 1))
 {
-  for(y in 0:7)
+  for(y in 0:(grid_size - 1))
   {
     cell <- paste0(x+1, '.', y+1)
     
@@ -25,78 +28,9 @@ for(x in 0:7)
 }
 gpoly <- as.data.frame(gpoly)
 names(gpoly) <- c('x', 'y', 'cell')    
-
-
-# ## calculate valid movement spaces
-# move_map <- function(steps, x, y, cells, focus)
-# {
-#   valid_moves <- NULL
-#   valid_moves <- data.frame('x'=integer(), 
-#                             'y'=integer(), 
-#                             'cell'=character())
-#   for(i in 1:steps)
-#   {
-#     ## move orthoginally
-#     valid_moves <- rbind(valid_moves,
-#                          data.frame('x' = c(x+i, x-i, x, x),
-#                                     'y' = c(y, y, y+i, y-i),
-#                                     'cell' = c(paste0(x+i, '.', y),
-#                                                paste0(x-i, '.', y),
-#                                                paste0(x,   '.', y+i),
-#                                                paste0(x,   '.', y-i)
-#                                     )
-#                          )
-#     )
-#     
-#     ## one step diagonally
-#     if(i == 2)
-#     {
-#       valid_moves <- rbind(valid_moves,
-#                            data.frame('x' = c(x+1, x+1, x-1, x-1),
-#                                       'y' = c(y+1, y-1, y-1, y+1),
-#                                       'cell' = c(paste0(x+1, '.', y+1),
-#                                                  paste0(x+1, '.', y-1),
-#                                                  paste0(x-1, '.', y-1),
-#                                                  paste0(x-1, '.', y+1)
-#                                       )
-#                            )
-#       )
-#     }
-#     
-#     ## move like a knight
-#     if(i == 3)
-#     {
-#       valid_moves <- rbind(valid_moves,
-#                            data.frame('x' = c(x+2, x+2, x-2, x-2, x+1, x-1, x+1, x-1),
-#                                       'y' = c(y+1, y-1, y-1, y+1, y+2, y+2, y-2, y-2),
-#                                       'cell' = c(paste0(x+2, '.', y+1), 
-#                                                  paste0(x+2, '.', y-1),
-#                                                  paste0(x-2, '.', y-1),
-#                                                  paste0(x-2, '.', y+1),                                 
-#                                                  paste0(x+1, '.', y+2),
-#                                                  paste0(x-1, '.', y+2),
-#                                                  paste0(x+1, '.', y-2),
-#                                                  paste0(x-1, '.', y-2))
-#                            )
-#       )
-#     }
-#   }
-#   
-#   valid_moves$x <- as.integer(valid_moves$x)
-#   valid_moves$y <- as.integer(valid_moves$y)
-#   if(focus == 'blockers')
-#   {
-#     valid_moves <- subset(valid_moves, x>=1 & x<=8 & y>=1 & y<=8 & !cell %in% cells)
-#   }
-#   
-#   if(focus == 'targets')
-#   {
-#     valid_moves <- subset(valid_moves, x>=1 & x<=8 & y>=1 & y<=8 & cell %in% cells)
-#   }
-#   
-#   return(valid_moves)
-# }
-
+gpoly$y <- as.integer(gpoly$y)
+gpoly$x <- as.integer(gpoly$x)
+gpoly <- subset(gpoly, y <= 8)
 
 ## initialize vars
 char_clicked <<- FALSE ## has the char_curr been clicked on yet?
@@ -109,6 +43,15 @@ char_team <<- subset(master_frame, char==turn_order[1])$team
 
 shinyServer(function(input, output, session) {
 
+  ## intro slide
+  output$slick_intro <- renderSlickR({
+    setwd('/srv/shiny-server/shinyforce')
+    pngs <- dir('sprites')[2:7]
+    pngs <- paste0('/srv/shiny-server/shinyforce/sprites/', pngs)
+    slick <- slickR(obj=pngs, height='400px', width='800px')
+    slick + settings(infinite=FALSE)
+  })
+  
   ## initial grid
   output$playgrid <- renderPlot({
     ggplot() +
@@ -140,7 +83,7 @@ shinyServer(function(input, output, session) {
     char_pos <- subset(master_frame, char==char_curr)
     char_team <- char_pos$team
     obstacs <- subset(master_frame, !char == char_curr)$cell
-    moves <- move_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers')
+    moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
     
     print(paste0(char_curr, ' SELECTED IS ', char_clicked))
     
@@ -150,7 +93,7 @@ shinyServer(function(input, output, session) {
       print(paste0("MOVE ", char_curr, " IS TRUE"))
       print(paste0('x_click:  ', x_click))
       print(paste0('y_click:  ', y_click))
-      print(move_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers'))
+      print(loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size))
       
       ## update location
       master_frame$xloc[which(master_frame$char == char_curr)] <<- x_click
@@ -165,10 +108,10 @@ shinyServer(function(input, output, session) {
       mobs <- subset(master_frame, team != char_team)$cell
       print(paste("MOBS:  ", mobs))
       
-      atks <- move_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='blockers')
+      atks <- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='blockers', grid_size)
       
       # print(paste0("ATTACK "))
-      # print(move_map(char_pos$attk, char_pos$xloc, char_pos$yloc, obstacs, focus='targets'))
+      # print(loc_map(char_pos$attk, char_pos$xloc, char_pos$yloc, obstacs, focus='targets', grid_size))
       
       
       ## move character
@@ -216,7 +159,7 @@ shinyServer(function(input, output, session) {
       print(paste0("SELECT ", char_curr, " IS TRUE"))
       print(paste0('current position: x=', x_click, '  y=', y_click))
       
-      moves <- move_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers')
+      moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
       
       alex_pos <- subset(master_frame, char=='Alex')
       ivan_pos <- subset(master_frame, char=='Ivan')
