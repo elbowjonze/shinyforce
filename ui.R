@@ -56,6 +56,7 @@ body <- dashboardBody(
       fluidRow(
         column(width = 6,
           h4("Messages"),
+          verbatimTextOutput("last_cell_clicked"),
           verbatimTextOutput("turn_out"),
           verbatimTextOutput("team_out")
         )

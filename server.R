@@ -1,10 +1,10 @@
 ## initial conditions
-master_frame <<- data.frame("char" = c('Alex', 'Ivan'),
+master_frame <- data.frame("char" = c('Alex', 'Ivan'),
                             "team" = c('shiny', 'sas'),
                             "xloc" = c(1, 5),
                             "yloc" = c(1, 5),
                             "cell" = c(1.1, 5.5),
-                            "move" = c(3, 2),
+                            "move" = c(1, 2),
                             "attk" = c(1, 3)
 )
 
@@ -18,7 +18,7 @@ for(x in 0:(grid_size - 1))
 {
   for(y in 0:(grid_size - 1))
   {
-    cell <- paste0(x+1, '.', y+1)
+    cell <- paste0(x, '.', y)
     
     gpoly <- rbind(gpoly, c(x, y, cell))        ## bottom left
     gpoly <- rbind(gpoly, c(x+1, y, cell))      ## bottom right
@@ -45,9 +45,8 @@ shinyServer(function(input, output, session) {
 
   ## intro slide
   output$slick_intro <- renderSlickR({
-    setwd('/srv/shiny-server/shinyforce')
     pngs <- dir('sprites')[2:7]
-    pngs <- paste0('/srv/shiny-server/shinyforce/sprites/', pngs)
+    pngs <- paste0(getwd(), '/sprites/', pngs)
     slick <- slickR(obj=pngs, height='400px', width='800px')
     slick + settings(infinite=FALSE)
   })
@@ -66,7 +65,7 @@ shinyServer(function(input, output, session) {
     paste0(turn_order[turn_index], ", it's your turn")
   })
   
-  ## user char selection
+  ## one observer to constantly watch plot clicks?
   observeEvent(input$grid_click$x,{
  
     ## whos turn?
@@ -74,45 +73,45 @@ shinyServer(function(input, output, session) {
       paste0(turn_order[turn_index], ", it's your turn")
     })
     
-    
     x_click <- floor(input$grid_click$x)
     y_click <- floor(input$grid_click$y)
     
+    output$last_cell_clicked <- renderText({
+      print(paste0('Last Cell Clicked:  ', paste0('(', x_click, ',', y_click, ')')))
+    })      
+      
+      
     ## current positions of characters
-    char_curr <- turn_order[turn_index]
-    char_pos <- subset(master_frame, char==char_curr)
-    char_team <- char_pos$team
-    obstacs <- subset(master_frame, !char == char_curr)$cell
-    moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
+    char_curr <<- turn_order[turn_index]
+    char_pos <<- subset(master_frame, char==char_curr)
+    char_team <<- char_pos$team
+    obstacs <<- subset(master_frame, !char == char_curr)$cell
+    moves <<- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
     
     print(paste0(char_curr, ' SELECTED IS ', char_clicked))
     
     ## move character, must come before select character
     if(char_clicked & nrow(subset(moves, x==x_click & y==y_click)) > 0)
     {
+      print(unique(moves$cell))
       print(paste0("MOVE ", char_curr, " IS TRUE"))
       print(paste0('x_click:  ', x_click))
       print(paste0('y_click:  ', y_click))
-      print(loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size))
       
       ## update location
       master_frame$xloc[which(master_frame$char == char_curr)] <<- x_click
       master_frame$yloc[which(master_frame$char == char_curr)] <<- y_click
       master_frame$cell[which(master_frame$char == char_curr)] <<- as.numeric(paste0(x_click, '.', y_click))
       
-      alex_pos <- subset(master_frame, char=='Alex')
-      ivan_pos <- subset(master_frame, char=='Ivan')
-      attk_pos <- subset(master_frame, char==char_curr)
+      alex_pos <<- subset(master_frame, char=='Alex')
+      ivan_pos <<- subset(master_frame, char=='Ivan')
+      attk_pos <<- subset(master_frame, char==char_curr)
       
       ## check for possible attacks
       mobs <- subset(master_frame, team != char_team)$cell
       print(paste("MOBS:  ", mobs))
       
       atks <- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='blockers', grid_size)
-      
-      # print(paste0("ATTACK "))
-      # print(loc_map(char_pos$attk, char_pos$xloc, char_pos$yloc, obstacs, focus='targets', grid_size))
-      
       
       ## move character
       output$playgrid <- renderPlot({
@@ -127,13 +126,9 @@ shinyServer(function(input, output, session) {
       })
       
       
-      # print(paste0('current position: x=', x_click, '  y=', y_click))
-      # print(paste0('char_pos for ', char_curr))
-      # print(char_pos)
-      # print(subset(master_frame, char==char_curr))
-      
       print(paste0(char_curr, ' TURN DONE, NOW ',  turn_order[turn_index + 1], ' TURN'))
       
+      ## increment turn order
       turn_index <<- turn_index + 1
       char_curr <<- turn_order[turn_index]    
       char_team <<- subset(master_frame, team != char_team)$team[1]
@@ -143,15 +138,11 @@ shinyServer(function(input, output, session) {
         print(paste0('Current team:  ', char_team))
       }) 
       
-      char_clicked <<- FALSE
+      char_clicked <<- FALSE  ## reset after move complete
       print(paste0("AFTER MOVE:   char_curr = ", char_curr))
 
     } 
       
-    print(paste0('INTERMEDIATE CHAR:   ', char_curr))
-    print(paste0('INTERMEDIATE CHAR CLICKED:   ', char_clicked))
-    print(paste0('INTERMEDIATE INDEX:   ', turn_index))
-    
     ## select CHAR, display valid moves
     if(!char_clicked & x_click==char_pos$xloc & y_click==char_pos$yloc)
     {
@@ -160,6 +151,7 @@ shinyServer(function(input, output, session) {
       print(paste0('current position: x=', x_click, '  y=', y_click))
       
       moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
+      print(unique(moves$cell))
       
       alex_pos <- subset(master_frame, char=='Alex')
       ivan_pos <- subset(master_frame, char=='Ivan')
@@ -179,12 +171,6 @@ shinyServer(function(input, output, session) {
         
     } 
       
-    # print(paste0('hit flag:  ', hit_flag))
-    # if(hit_flag == 1)
-    # {
-    #   char_hit <<- !char_hit
-    #   hit_flag <- 0
-    # }
     
     output$turn_out <- renderPrint({
       print(paste0('Turn index:  ', turn_index))
