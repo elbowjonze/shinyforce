@@ -1,18 +1,21 @@
 ## initial conditions
 master_frame <- data.frame("char" = c('Alex', 'Ivan'),
-                            "team" = c('shiny', 'sas'),
-                            "xloc" = c(1, 5),
-                            "yloc" = c(1, 5),
-                            "cell" = c(1.1, 5.5),
-                            "move" = c(1, 2),
-                            "attk" = c(1, 3)
+                           "team" = c('shiny', 'sas'),
+                           "xloc" = c(1, 5),
+                           "yloc" = c(1, 5),
+                           "cell" = c(1.1, 5.5),
+                           "move" = c(3, 2),
+                           "attk" = c(1, 3),
+                           "health" = c(100, 100),
+                           "icon" = c('/srv/shiny-server/shinyforce/sprites/alex_clear.png', '/srv/shiny-server/shinyforce/sprites/ivan_clear.png')
+                           
 )
 
 alex <- readPNG('/srv/shiny-server/shinyforce/sprites/alex_clear.png')
 ivan <- readPNG('/srv/shiny-server/shinyforce/sprites/ivan_clear.png')
 
 ## play grid - defined as ggplot polygons
-grid_size <- 16  ## number of cells in each row/col
+grid_size <- 8  ## number of cells in each row/col
 gpoly <- NULL
 for(x in 0:(grid_size - 1))
 {
@@ -30,11 +33,12 @@ gpoly <- as.data.frame(gpoly)
 names(gpoly) <- c('x', 'y', 'cell')    
 gpoly$y <- as.integer(gpoly$y)
 gpoly$x <- as.integer(gpoly$x)
-gpoly <- subset(gpoly, y <= 8)
+
 
 ## initialize vars
 char_clicked <<- FALSE ## has the char_curr been clicked on yet?
-char_moved   <<- FALSE ## has the char_curr been moved AFTER being clicked?
+char_moved <<- FALSE ## has the char_curr been moved AFTER being clicked?
+char_attacked <<- FALSE ## has the char_curr attacked AFTER being clicked?
 turn_order <<- rep(c('Alex', 'Ivan'), 5)
 turn_index <<- 1
 char_team <<- subset(master_frame, char==turn_order[1])$team
@@ -45,7 +49,7 @@ shinyServer(function(input, output, session) {
 
   ## intro slide
   output$slick_intro <- renderSlickR({
-    pngs <- dir('sprites')[2:7]
+    pngs <- dir('sprites')[2:5]
     pngs <- paste0(getwd(), '/sprites/', pngs)
     slick <- slickR(obj=pngs, height='400px', width='800px')
     slick + settings(infinite=FALSE)
@@ -65,16 +69,39 @@ shinyServer(function(input, output, session) {
     paste0(turn_order[turn_index], ", it's your turn")
   })
   
+  output$current_char_icon <- renderImage({
+    image <- subset(master_frame, char == turn_order[turn_index])$icon
+    list(src = image,
+         width = 300,
+         height = 50)
+  }, deleteFile = FALSE)
+    
+  output$current_char_health <- renderText({
+    paste0(turn_order[turn_index], ' has ', subset(master_frame, char == turn_order[turn_index])$health, ' remaining')
+  })
+  
   ## one observer to constantly watch plot clicks?
   observeEvent(input$grid_click$x,{
- 
+
+    x_click <- floor(input$grid_click$x)
+    y_click <- floor(input$grid_click$y)
+    
     ## whos turn?
     output$whos_turn <- renderText({
       paste0(turn_order[turn_index], ", it's your turn")
     })
     
-    x_click <- floor(input$grid_click$x)
-    y_click <- floor(input$grid_click$y)
+    ## update current char box
+    output$current_char_icon <- renderImage({
+      image <- subset(master_frame, char == turn_order[turn_index])$icon
+      list(src = image,
+           width = 300,
+           height = 50)
+    }, deleteFile = FALSE)
+    
+    output$current_char_health <- renderText({
+      paste0(turn_order[turn_index], ' has ', subset(master_frame, char == turn_order[turn_index])$health, ' remaining')
+    })
     
     output$last_cell_clicked <- renderText({
       print(paste0('Last Cell Clicked:  ', paste0('(', x_click, ',', y_click, ')')))
@@ -89,7 +116,9 @@ shinyServer(function(input, output, session) {
     moves <<- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
     
     print(paste0(char_curr, ' SELECTED IS ', char_clicked))
-    
+
+
+        
     ## move character, must come before select character
     if(char_clicked & nrow(subset(moves, x==x_click & y==y_click)) > 0)
     {
@@ -111,7 +140,7 @@ shinyServer(function(input, output, session) {
       mobs <- subset(master_frame, team != char_team)$cell
       print(paste("MOBS:  ", mobs))
       
-      atks <- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='blockers', grid_size)
+      atks <- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='targets', grid_size)
       
       ## move character
       output$playgrid <- renderPlot({
@@ -124,9 +153,24 @@ shinyServer(function(input, output, session) {
             annotation_raster(alex, xmin=alex_pos$xloc, xmax=alex_pos$xloc+1, ymin=alex_pos$yloc, ymax=alex_pos$yloc+1) +
             annotation_raster(ivan, xmin=ivan_pos$xloc, xmax=ivan_pos$xloc+1, ymin=ivan_pos$yloc, ymax=ivan_pos$yloc+1)
       })
-      
-      
-      print(paste0(char_curr, ' TURN DONE, NOW ',  turn_order[turn_index + 1], ' TURN'))
+
+      ## PICK UP HERE!!!!    ATTACKING!!  
+      if(nrow(atks) > 0)
+      {
+        observeEvent(input$grid_click$x,{
+          
+          x_click2 <- floor(input$grid_click$x)
+          y_click2 <- floor(input$grid_click$y)
+          
+          xy_cell <- paste0(x_click2, '.', y_click2)
+          
+          if(nrow(subset(gpoly, mobs %in% xy_cell)))
+          {
+            master_frame$health[which(master_frame$char == char_curr)] <<- master_frame$health[which(master_frame$char == char_curr)] - 10
+          }
+        })
+      }
+         
       
       ## increment turn order
       turn_index <<- turn_index + 1

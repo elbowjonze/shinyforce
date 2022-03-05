@@ -48,9 +48,15 @@ body <- dashboardBody(
           bsModal('modal_intro', 'IT BEGINS!!', 'intro_slides', size='large',
                   slickROutput('slick_intro', height='400px', width='800px')
           ),
-          plotOutput("playgrid", height=400, width=800,
-                      click = "grid_click"
+          plotOutput('playgrid', height=400, width=400,
+                     click = 'grid_click',
+                     hover = 'grid_hover'
           )
+        ),
+        column(width = 2),
+        column(width = 4,
+          imageOutput('current_char_icon'),
+          verbatimTextOutput('current_char_health')
         )
       ),
       fluidRow(
