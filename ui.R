@@ -12,8 +12,10 @@ library(ggplot2)
 library(grid)
 library(png)
 
-alex <- readPNG('./sprites/alex_clear.png')
-ivan <- readPNG('./sprites/ivan_clear.png')
+# alex <- readPNG('./sprites/alex_clear.png')
+# tex <- readPNG('./sprites/tex.png')
+# ivan <- readPNG('./sprites/ivan_clear.png')
+# rocko <- readPNG('./sprites/rocko.png')
 
 
 header <- dashboardHeader(title='SHINY FORCE')

@@ -1,18 +1,23 @@
 ## initial conditions
-master_frame <- data.frame("char" = c('Alex', 'Ivan'),
-                           "team" = c('shiny', 'sas'),
-                           "xloc" = c(1, 5),
-                           "yloc" = c(1, 5),
-                           "cell" = c(1.1, 5.5),
-                           "move" = c(3, 2),
-                           "attk" = c(1, 3),
-                           "health" = c(100, 100),
-                           "icon" = c('/srv/shiny-server/shinyforce/sprites/alex_clear.png', '/srv/shiny-server/shinyforce/sprites/ivan_clear.png')
+master_frame <- data.frame("char" = c('Alex', 'Tex', 'Ivan', 'Rocko'),
+                           "team" = c('shiny', 'shiny', 'sas', 'sas'),
+                           "xloc" = c(1, 2, 4, 5),
+                           "yloc" = c(1, 2, 4, 5),
+                           "cell" = c(1.1, 2.2, 4.4, 5.5),
+                           "move" = c(3, 2, 2, 1),
+                           "attk" = c(1, 3, 2, 4),
+                           "health" = c(100, 100, 100, 100),
+                           "icon" = c('/srv/shiny-server/shinyforce/sprites/alex_clear.png',
+                                      '/srv/shiny-server/shinyforce/sprites/tex.png',
+                                      '/srv/shiny-server/shinyforce/sprites/alex_clear.png',
+                                      '/srv/shiny-server/shinyforce/sprites/rocko.png')
                            
 )
 
 alex <- readPNG('/srv/shiny-server/shinyforce/sprites/alex_clear.png')
+tex <- readPNG('/srv/shiny-server/shinyforce/sprites/tex.png')
 ivan <- readPNG('/srv/shiny-server/shinyforce/sprites/ivan_clear.png')
+rocko <- readPNG('/srv/shiny-server/shinyforce/sprites/rocko.png')  
 
 ## play grid - defined as ggplot polygons
 grid_size <- 8  ## number of cells in each row/col
@@ -39,14 +44,15 @@ gpoly$x <- as.integer(gpoly$x)
 char_clicked <<- FALSE ## has the char_curr been clicked on yet?
 char_moved <<- FALSE ## has the char_curr been moved AFTER being clicked?
 char_attacked <<- FALSE ## has the char_curr attacked AFTER being clicked?
-turn_order <<- rep(c('Alex', 'Ivan'), 5)
+turn_order <<- rep(c('Alex', 'Ivan', 'Tex', 'Rocko'), 5)
 turn_index <<- 1
 char_team <<- subset(master_frame, char==turn_order[1])$team
 
 
-
 shinyServer(function(input, output, session) {
 
+  # session$reload()
+  
   ## intro slide
   output$slick_intro <- renderSlickR({
     pngs <- dir('sprites')[2:5]
@@ -60,7 +66,9 @@ shinyServer(function(input, output, session) {
     ggplot() +
       geom_polygon(data=gpoly, mapping=aes(x=x, y=y, group=cell), color='black', fill=NA) +
       annotation_raster(alex, xmin=1, xmax=2, ymin=1, ymax=2) +
-      annotation_raster(ivan, xmin=5, xmax=6, ymin=5, ymax=6)
+      annotation_raster(tex, xmin=2, xmax=3, ymin=2, ymax=3) +
+      annotation_raster(ivan, xmin=5, xmax=6, ymin=5, ymax=6) +
+      annotation_raster(rocko, xmin=6, xmax=7, ymin=6, ymax=7)
   })
   
 
@@ -133,7 +141,9 @@ shinyServer(function(input, output, session) {
       master_frame$cell[which(master_frame$char == char_curr)] <<- as.numeric(paste0(x_click, '.', y_click))
       
       alex_pos <<- subset(master_frame, char=='Alex')
+      tex_pos <<- subset(master_frame, char=='Tex')
       ivan_pos <<- subset(master_frame, char=='Ivan')
+      rocko_pos <<- subset(master_frame, char=='Rocko')
       attk_pos <<- subset(master_frame, char==char_curr)
       
       ## check for possible attacks
@@ -151,7 +161,10 @@ shinyServer(function(input, output, session) {
                          color='black',
                          fill='#ff6666') +          
             annotation_raster(alex, xmin=alex_pos$xloc, xmax=alex_pos$xloc+1, ymin=alex_pos$yloc, ymax=alex_pos$yloc+1) +
-            annotation_raster(ivan, xmin=ivan_pos$xloc, xmax=ivan_pos$xloc+1, ymin=ivan_pos$yloc, ymax=ivan_pos$yloc+1)
+            annotation_raster(tex, xmin=tex_pos$xloc, xmax=tex_pos$xloc+1, ymin=tex_pos$yloc, ymax=tex_pos$yloc+1) +
+            annotation_raster(ivan, xmin=ivan_pos$xloc, xmax=ivan_pos$xloc+1, ymin=ivan_pos$yloc, ymax=ivan_pos$yloc+1) +
+            annotation_raster(rocko, xmin=rocko_pos$xloc, xmax=rocko_pos$xloc+1, ymin=rocko_pos$yloc, ymax=rocko_pos$yloc+1)
+        
       })
 
       ## PICK UP HERE!!!!    ATTACKING!!  
@@ -197,8 +210,10 @@ shinyServer(function(input, output, session) {
       moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
       print(unique(moves$cell))
       
-      alex_pos <- subset(master_frame, char=='Alex')
-      ivan_pos <- subset(master_frame, char=='Ivan')
+      alex_pos <<- subset(master_frame, char=='Alex')
+      tex_pos <<- subset(master_frame, char=='Tex')
+      ivan_pos <<- subset(master_frame, char=='Ivan')
+      rocko_pos <<- subset(master_frame, char=='Rocko')
       
       output$playgrid <- renderPlot({
         ggplot() +
@@ -208,7 +223,9 @@ shinyServer(function(input, output, session) {
                          color='black',
                          fill='#ccff99') +
             annotation_raster(alex, xmin=alex_pos$xloc, xmax=alex_pos$xloc+1, ymin=alex_pos$yloc, ymax=alex_pos$yloc+1) +
-            annotation_raster(ivan, xmin=ivan_pos$xloc, xmax=ivan_pos$xloc+1, ymin=ivan_pos$yloc, ymax=ivan_pos$yloc+1)
+            annotation_raster(tex, xmin=tex_pos$xloc, xmax=tex_pos$xloc+1, ymin=tex_pos$yloc, ymax=tex_pos$yloc+1) +
+            annotation_raster(ivan, xmin=ivan_pos$xloc, xmax=ivan_pos$xloc+1, ymin=ivan_pos$yloc, ymax=ivan_pos$yloc+1) +
+            annotation_raster(rocko, xmin=rocko_pos$xloc, xmax=rocko_pos$xloc+1, ymin=rocko_pos$yloc, ymax=rocko_pos$yloc+1)
       })   
       
       char_clicked <<- TRUE
