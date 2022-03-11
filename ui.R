@@ -1,4 +1,3 @@
-## git test
 options(stringsAsFactors = FALSE)
 
 source('funcs/mapper.R')
@@ -12,14 +11,7 @@ library(ggplot2)
 library(grid)
 library(png)
 
-# alex <- readPNG('./sprites/alex_clear.png')
-# tex <- readPNG('./sprites/tex.png')
-# ivan <- readPNG('./sprites/ivan_clear.png')
-# rocko <- readPNG('./sprites/rocko.png')
-
-
 header <- dashboardHeader(title='SHINY FORCE')
-
 
 sidebar <- dashboardSidebar(
   sidebarMenu(
