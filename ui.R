@@ -6,6 +6,7 @@ library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
 library(shinyBS)
+library(shinyjs)
 library(slickR)
 library(ggplot2)
 library(grid)
@@ -23,6 +24,8 @@ sidebar <- dashboardSidebar(
 
 body <- dashboardBody(
     
+  useShinyjs(), 
+  
   ## suppress all error messages
   tags$style(type="text/css",
              ".shiny-output-error { visibility: hidden; }",
@@ -49,16 +52,28 @@ body <- dashboardBody(
         ),
         column(width = 2),
         column(width = 4,
-          imageOutput('current_char_icon'),
-          verbatimTextOutput('current_char_health')
-        )
-      ),
-      fluidRow(
-        column(width = 6,
-          h4("Messages"),
-          verbatimTextOutput("last_cell_clicked"),
-          verbatimTextOutput("turn_out"),
-          verbatimTextOutput("team_out")
+          imageOutput('current_char_icon', height='50px', width='50px'),
+          br(),
+          verbatimTextOutput('current_char_health'),
+          br(),
+          actionBttn('move_button',
+                     label = 'Move',
+                     style = 'material-flat'),
+          actionBttn('atk_button',
+                     label = 'Attack',
+                     style = 'material-flat'),
+          actionBttn('end_turn',
+                     label = 'End Turn',
+                     style = 'material-flat'),
+          br(),
+          br(),
+          br(),
+          verbatimTextOutput('endturn_counter'),
+          br(),
+          br(),
+          actionBttn('reload',
+                     label = 'Reload',
+                     style = 'material-flat')
         )
       )
     ),
