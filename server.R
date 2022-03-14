@@ -37,34 +37,37 @@ gpoly$x <- as.integer(gpoly$x)
 
 
 ## initialize vars
-char_clicked  <<- FALSE ## has the current character been clicked on yet?
-char_moved    <<- FALSE ## has the current character been moved AFTER being clicked?
-char_attacked <<- FALSE ## has the current character attacked AFTER being clicked?
+char_moved    <<- TRUE ## has the current character been moved AFTER being clicked?
+char_attacked <<- TRUE ## has the current character attacked AFTER being clicked?
 turn_order    <<- rep(c('Alex', 'Ivan', 'Tex', 'Rocko'), 25)   
 turn_index    <<- 1
+char_curr     <<- turn_order[turn_index]
 char_team     <<- subset(master_frame, char==turn_order[1])$team  
-
+atks          <<- master_frame[0,]
 
 ## functionalize ggplot calls
-make_plot <- function(grid, frame, scope, moves=NULL, atks=NULL)
+make_plot <- function(grid, frame, scope=NULL, moves=NULL, atks=NULL)
 {
   p <- ggplot() +
     geom_polygon(data=grid, mapping=aes(x=x, y=y, group=cell), color='black', fill=NA)
   
-  if(scope=='pre_move')
+  if(!is.null(scope))
   {
-    p <- p + geom_polygon(data=subset(grid, cell %in% moves$cell),
-                          mapping=aes(x=x, y=y, group=cell),
-                          color='black',
-                          fill='#ccff99') 
-  }
-  
-  if(scope=='post_move')
-  {
-    p <- p + geom_polygon(data=subset(grid, cell %in% atks$cell),
-                          mapping=aes(x=x, y=y, group=cell),
-                          color='black',
-                          fill='#ff6666')
+    if(scope=='show_move')
+    {
+      p <- p + geom_polygon(data=subset(grid, cell %in% moves$cell),
+                            mapping=aes(x=x, y=y, group=cell),
+                            color='black',
+                            fill='#ccff99') 
+    }
+    
+    if(scope=='show_atk')
+    {
+      p <- p + geom_polygon(data=subset(grid, cell %in% atks$cell),
+                            mapping=aes(x=x, y=y, group=cell),
+                            color='black',
+                            fill='#ff6666')
+    }
   }
   
   ## loop through all non-dead chars
@@ -96,7 +99,7 @@ shinyServer(function(input, output, session) {
   ## --------------------------------------
   ## generate initial grid
   output$playgrid <- renderPlot({
-    make_plot(gpoly, master_frame, 'initial_positions')
+    make_plot(gpoly, master_frame)
   })
   
   ## generate initial callout for current chars turn
@@ -108,7 +111,7 @@ shinyServer(function(input, output, session) {
   output$current_char_icon <- renderImage({
     image <- subset(master_frame, char == turn_order[turn_index])$icon
     list(src = image,
-         width = 300,
+         width = 50,
          height = 50)
   }, deleteFile = FALSE)
     
@@ -122,6 +125,7 @@ shinyServer(function(input, output, session) {
 
     x_click <- floor(input$grid_click$x)
     y_click <- floor(input$grid_click$y)
+    xy_cell <- paste0(x_click, '.', y_click)
     
     ## current positions of characters
     char_curr <<- turn_order[turn_index]
@@ -130,23 +134,8 @@ shinyServer(function(input, output, session) {
     obstacs <<- subset(master_frame, !char == char_curr)$cell
     moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
     
-    
-    ## select CHAR, display valid moves
-    if(!char_clicked & x_click==char_pos$xloc & y_click==char_pos$yloc)
-    {
-      moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
-      
-      ## UPDATE PLOT
-      output$playgrid <- renderPlot({
-        make_plot(gpoly, master_frame, scope='pre_move', moves=moves)
-      })
-      
-      char_clicked <<- TRUE
-    } 
-    
-    
     ## move char within valid set of locations
-    if(char_clicked & nrow(subset(moves, x==x_click & y==y_click)) > 0)
+    if(nrow(subset(moves, x==x_click & y==y_click)) > 0 & char_moved==FALSE)
     {
       
       ## update location
@@ -154,37 +143,103 @@ shinyServer(function(input, output, session) {
       master_frame$yloc[which(master_frame$char == char_curr)] <<- y_click
       master_frame$cell[which(master_frame$char == char_curr)] <<- as.numeric(paste0(x_click, '.', y_click))
       
-      attk_pos <<- subset(master_frame, char==char_curr)
-      
-      ## check for possible attacks
-      mobs <- subset(master_frame, team != char_team)$cell
-      atks <- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='targets', grid_size)
-      
-      ## move character, display possible attacks -- UPDATE PLOT
+      ## UPDATE PLOT with possible moves
       output$playgrid <- renderPlot({
-        make_plot(gpoly, master_frame, scope='post_move', atks=atks)
+        make_plot(gpoly, master_frame, scope='show_move', atks=atks)
       })
-
-      ## ATTACKING!!  
-      if(nrow(atks) > 0)
-      {
-        observeEvent(input$grid_click$x,{
-          
-          x_click2 <- floor(input$grid_click$x)
-          y_click2 <- floor(input$grid_click$y)
-          
-          xy_cell <- paste0(x_click2, '.', y_click2)
-          
-          if(nrow(subset(gpoly, mobs %in% xy_cell)))
-          {
-            target <- master_frame$char[which(master_frame$cell == xy_cell)]
-            master_frame$health[which(master_frame$char == target)] <<- master_frame$health[which(master_frame$char == target)] - 10
-          }
-        })
-      }
       
-    } 
+      # output$move_button <- renderUI({
+      #   actionBttn('move_button',
+      #              label = 'Move Complete',
+      #              style = 'material-flat')
+      # })
+      
+      char_moved <<- TRUE
+      shinyjs::disable('move_button')
+    }
+    
+    ## ATTACKING!!
+    if(nrow(subset(atks, x==x_click & y==y_click)) > 0 & char_attacked==FALSE)
+    {
+      if(nrow(subset(gpoly, mobs %in% xy_cell)))
+      {
+        target <- master_frame$char[which(master_frame$cell == xy_cell)]
+        master_frame$health[which(master_frame$char == target)] <<- master_frame$health[which(master_frame$char == target)] - 10
+        
+        ## remove red attack highlights
+        output$playgrid <- renderPlot({
+          make_plot(gpoly, master_frame)
+        })
+        
+        char_attacked <<- TRUE 
+        shinyjs::disable('atk_button')
+      }
+    }
+    
   })
+  
+
+  # ## define buttons
+  # output$move_button <- renderUI({
+  #   if(turn_index==1 | char_moved==FALSE)
+  #   {
+  #     actionBttn('move_button',
+  #                 label = 'Move',
+  #                 style = 'material-flat')
+  #   }
+  # })
+  # 
+  # output$atk_button <- renderUI({
+  #   if(turn_index==1 | char_attacked==FALSE)
+  #   {
+  #     actionBttn('atk_button',
+  #                label = 'Attack',
+  #                style = 'material-flat')
+  #   }
+  # })
+  # 
+  # 
+  # 
+  #   
+  # output$move_status <- renderPrint({
+  #   paste0('char_moved == ', char_moved)
+  # })
+  # 
+  # output$attack_status <- renderPrint({
+  #   paste0('char_attacked == ', char_attacked)
+  # })  
+    
+  
+  
+    
+  ## MOVEMENT 
+  observeEvent(input$move_button, {
+    char_moved <<- FALSE  
+    moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
+    
+    ## UPDATE PLOT
+    output$playgrid <- renderPlot({
+      make_plot(gpoly, master_frame, scope='show_move', moves=moves)
+    })
+  })
+    
+    
+  ## ATTACKING
+  observeEvent(input$atk_button, {
+    char_attacked <<- FALSE 
+    attk_pos <<- subset(master_frame, char==char_curr)
+    
+    ## check for possible attacks
+    mobs <<- subset(master_frame, team != char_team)$cell
+    atks <<- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='targets', grid_size)
+    
+    ## UPDATE PLOT
+    output$playgrid <- renderPlot({
+      make_plot(gpoly, master_frame, scope='show_atk', atks=atks)
+    })
+  })    
+    
+    
   
   ## hit END TURN button, increment turn order
   observeEvent(input$end_turn, {
@@ -209,17 +264,12 @@ shinyServer(function(input, output, session) {
     output$current_char_health <- renderText({
       paste0(turn_order[turn_index], ' has ', subset(master_frame, char == turn_order[turn_index])$health, ' health remaining')
     })
-    
+
     enable('move_button')
     enable('atk_button')
-    
-    char_clicked <<- FALSE  ## reset after move complete
   })   
-  
-  
-  output$endturn_counter <- renderText({
-    as.integer(input$end_turn)
-  })
-  
     
+  
+  #session$reload()
+  
 })
