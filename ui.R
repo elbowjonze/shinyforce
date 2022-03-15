@@ -66,12 +66,7 @@ body <- dashboardBody(
           # uiOutput('atk_button'),
           actionBttn('end_turn',
                      label = 'End Turn',
-                     style = 'material-flat'),
-          br(),
-          br(),
-          verbatimTextOutput('move_status'),
-          verbatimTextOutput('attack_status')
-          
+                     style = 'material-flat')
         )
       )
     ),

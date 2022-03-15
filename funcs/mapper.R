@@ -20,9 +20,6 @@ loc_map <- function(pattern, x, y, cells, focus, grid_size)
                            'y'=integer(), 
                            'cell'=character())
   
-  # x <- x + 1
-  # y <- y + 1
-  
   if(pattern %in% c(1, 2, 3))
   {
     for(i in 1:pattern)
