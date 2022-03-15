@@ -16,8 +16,8 @@ header <- dashboardHeader(title='SHINY FORCE')
 
 sidebar <- dashboardSidebar(
   sidebarMenu(
-    menuItem("", tabName="game", icon = icon("dashboard")),
-    menuItem("placeholder", icon=icon("th"), tabName = "dunno")
+    menuItem("game", tabName="game"),
+    menuItem("placeholder", icon=icon("th"), tabName = "more_stuff")
   )
 )
 
@@ -37,8 +37,6 @@ body <- dashboardBody(
       actionButton('intro_slides', 'Prologue'),
       br(),
       br(),
-      br(),
-      br(),
       fluidRow(
         column(width = 4,
           bsModal('modal_intro', 'PLACEHOLDER MODAL FOR INTRO SLIDE DECK', 'intro_slides', size='large',
@@ -53,26 +51,27 @@ body <- dashboardBody(
         column(width = 4,
           textOutput('whos_turn'),
           br(),
-          br(),
           imageOutput('current_char_icon', height='50px', width='50px'),
           br(),
           verbatimTextOutput('current_char_health'),
           br(),
-          # uiOutput('move_button'),
           actionBttn('move_button',
                      label = 'Move',
                      style = 'material-flat'),
-          # uiOutput('atk_button'),
+          br(),
+          br(),
           actionBttn('atk_button',
-                     label = 'Attack',
-                     style = 'material-flat'),
+                      label = 'Attack',
+                      style = 'material-flat'),
+          verbatimTextOutput('no_atk_msg'),
+          br(),
           actionBttn('end_turn',
                      label = 'End Turn',
                      style = 'material-flat')
         )
       )
     ),
-    tabItem(tabName='dunno',
+    tabItem(tabName='more_stuff',
             h2('more content!')
     )        
   )
