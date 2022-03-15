@@ -76,12 +76,12 @@ loc_map <- function(pattern, x, y, cells, focus, grid_size)
   
   if(focus == 'blockers')
   {
-    valid_locs <- subset(valid_locs, x>=1 & x<=grid_size & y>=1 & y<=grid_size & !cell %in% cells)
+    valid_locs <- subset(valid_locs, x>=0 & x<=grid_size & y>=0 & y<=grid_size & !cell %in% cells)
   }
   
   if(focus == 'targets')
   {
-    valid_locs <- subset(valid_locs, x>=1 & x<=grid_size & y>=1 & y<=grid_size & cell %in% cells)
+    valid_locs <- subset(valid_locs, x>=0 & x<=grid_size & y>=0 & y<=grid_size & cell %in% cells)
   }
   
   return(valid_locs)
