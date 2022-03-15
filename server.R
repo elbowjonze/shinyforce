@@ -74,9 +74,6 @@ shinyServer(function(input, output, session) {
                                         '/srv/shiny-server/shinyforce/sprites/rocko_clear.png')
   )
   
-  # session$reload()
-
-  
   ## initialize vars
   char_moved    <- TRUE ## has the current character been moved AFTER being clicked?
   char_attacked <- TRUE ## has the current character attacked AFTER being clicked?
@@ -114,7 +111,6 @@ shinyServer(function(input, output, session) {
     paste0(turn_order[turn_index], ' has ', subset(master_frame, char == turn_order[turn_index])$health, ' health remaining')
   })
   
-  
   ## intro slides
   output$slick_intro <- renderSlickR({
     pngs <- dir('sprites')[2:5]
@@ -124,10 +120,7 @@ shinyServer(function(input, output, session) {
   })
   
 
-  
-  
-  
-  ## one observer to constantly watch plot clicks?
+  ## one observer to constantly watch plot clicks
   observeEvent(input$grid_click$x,{
 
     x_click <- floor(input$grid_click$x)
@@ -155,13 +148,8 @@ shinyServer(function(input, output, session) {
         make_plot(gpoly, master_frame, scope='show_move', atks=atks)
       })
       
-      # output$move_button <- renderUI({
-      #   actionBttn('move_button',
-      #              label = 'Move Complete',
-      #              style = 'material-flat')
-      # })
-      
-      char_moved <- TRUE
+      char_moved <<- TRUE
+      updateActionButton(session, 'move_button', label='Move Complete')
       shinyjs::disable('move_button')
     }
     
@@ -178,7 +166,8 @@ shinyServer(function(input, output, session) {
           make_plot(gpoly, master_frame)
         })
         
-        char_attacked <- TRUE 
+        char_attacked <<- TRUE 
+        updateActionButton(session, 'atk_button', label='Attack Complete')
         shinyjs::disable('atk_button')
       }
     }
@@ -186,39 +175,6 @@ shinyServer(function(input, output, session) {
   })
   
 
-  # ## define buttons
-  # output$move_button <- renderUI({
-  #   if(turn_index==1 | char_moved==FALSE)
-  #   {
-  #     actionBttn('move_button',
-  #                 label = 'Move',
-  #                 style = 'material-flat')
-  #   }
-  # })
-  # 
-  # output$atk_button <- renderUI({
-  #   if(turn_index==1 | char_attacked==FALSE)
-  #   {
-  #     actionBttn('atk_button',
-  #                label = 'Attack',
-  #                style = 'material-flat')
-  #   }
-  # })
-  # 
-  # 
-  # 
-  #   
-  # output$move_status <- renderPrint({
-  #   paste0('char_moved == ', char_moved)
-  # })
-  # 
-  # output$attack_status <- renderPrint({
-  #   paste0('char_attacked == ', char_attacked)
-  # })  
-    
-  
-  
-    
   ## MOVEMENT 
   observeEvent(input$move_button, {
     char_moved <<- FALSE  
@@ -242,16 +198,23 @@ shinyServer(function(input, output, session) {
     atks <<- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='targets', grid_size)
     
     ## UPDATE PLOT
-    output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame, scope='show_atk', atks=atks)
-    })
+    if(nrow(atks) > 0)
+    {
+      output$playgrid <- renderPlot({
+        make_plot(gpoly, master_frame, scope='show_atk', atks=atks)
+      })
+    }else
+    {
+      # updateActionButton(session, 'atk_button', label='No Attacks Possible')  ## neither of these are optimal, revisit later
+      output$no_atk_msg <- renderPrint({
+        'No Attacks Possible'
+      })
+    }
   })    
     
-    
-  
+
   ## hit END TURN button, increment turn order
   observeEvent(input$end_turn, {
-    
     turn_index <<- turn_index + 1
     char_curr  <<- turn_order[turn_index]    
     char_team  <<- subset(master_frame, team != char_team)$team[1]
@@ -273,6 +236,14 @@ shinyServer(function(input, output, session) {
       paste0(turn_order[turn_index], ' has ', subset(master_frame, char == turn_order[turn_index])$health, ' health remaining')
     })
 
+    ## reset no available attack helper message
+    output$no_atk_msg <- renderPrint({
+      ''
+    })
+    
+    updateActionButton(session, 'move_button', label='Move')
+    updateActionButton(session, 'atk_button', label='Attack')
+    
     enable('move_button')
     enable('atk_button')
   })   
