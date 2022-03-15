@@ -68,10 +68,10 @@ shinyServer(function(input, output, session) {
                              'move' = c(3, 2, 2, 1),
                              'attk' = c(1, 3, 2, 3),
                              'health' = c(100, 100, 100, 100),
-                             'icon' = c('/srv/shiny-server/shinyforce/sprites/alex_clear.png',
-                                        '/srv/shiny-server/shinyforce/sprites/tex_clear.png',
-                                        '/srv/shiny-server/shinyforce/sprites/ivan_clear.png',
-                                        '/srv/shiny-server/shinyforce/sprites/rocko_clear.png')
+                             'icon' = c('./sprites/alex_clear.png',
+                                        './sprites/tex_clear.png',
+                                        './sprites/ivan_clear.png',
+                                        './sprites/rocko_clear.png')
   )
   
   ## initialize vars
