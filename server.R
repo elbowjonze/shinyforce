@@ -57,16 +57,10 @@ names(gpoly) <- c('x', 'y', 'cell')
 gpoly$y <- as.integer(gpoly$y)
 gpoly$x <- as.integer(gpoly$x)
 
-
-
-
-
-
-
 shinyServer(function(input, output, session) {
 
   ## initial conditions
-  master_frame <<- data.frame('char' = c('Alex', 'Tex', 'Ivan', 'Rocko'),
+  master_frame <- data.frame('char' = c('Alex', 'Tex', 'Ivan', 'Rocko'),
                              'team' = c('shiny', 'shiny', 'sas', 'sas'),
                              'xloc' = c(1, 2, 4, 5),
                              'yloc' = c(1, 2, 4, 5),
@@ -84,14 +78,14 @@ shinyServer(function(input, output, session) {
 
   
   ## initialize vars
-  char_moved    <<- TRUE ## has the current character been moved AFTER being clicked?
-  char_attacked <<- TRUE ## has the current character attacked AFTER being clicked?
-  turn_order    <<- rep(c('Alex', 'Ivan', 'Tex', 'Rocko'), 25)   
-  turn_index    <<- 1
-  char_curr     <<- turn_order[turn_index]
-  char_team     <<- subset(master_frame, char==turn_order[1])$team
-  char_pos      <<- subset(master_frame, char==char_curr)
-  atks          <<- master_frame[0,]
+  char_moved    <- TRUE ## has the current character been moved AFTER being clicked?
+  char_attacked <- TRUE ## has the current character attacked AFTER being clicked?
+  turn_order    <- rep(c('Alex', 'Ivan', 'Tex', 'Rocko'), 25)   
+  turn_index    <- 1
+  char_curr     <- turn_order[turn_index]
+  char_team     <- subset(master_frame, char==turn_order[1])$team
+  char_pos      <- subset(master_frame, char==char_curr)
+  atks          <- master_frame[0,]
   
   
   ## --------------------------------------
@@ -141,11 +135,11 @@ shinyServer(function(input, output, session) {
     xy_cell <- paste0(x_click, '.', y_click)
     
     ## current positions of characters
-    char_curr <<- turn_order[turn_index]
-    char_pos <<- subset(master_frame, char==char_curr)
-    char_team <<- char_pos$team
-    obstacs <<- subset(master_frame, !char == char_curr)$cell
-    moves <<- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
+    char_curr <- turn_order[turn_index]
+    char_pos  <- subset(master_frame, char==char_curr)
+    char_team <- char_pos$team
+    obstacs   <- subset(master_frame, !char == char_curr)$cell
+    moves     <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
     
     ## move char within valid set of locations
     if(nrow(subset(moves, x==x_click & y==y_click)) > 0 & char_moved==FALSE)
@@ -167,7 +161,7 @@ shinyServer(function(input, output, session) {
       #              style = 'material-flat')
       # })
       
-      char_moved <<- TRUE
+      char_moved <- TRUE
       shinyjs::disable('move_button')
     }
     
@@ -184,7 +178,7 @@ shinyServer(function(input, output, session) {
           make_plot(gpoly, master_frame)
         })
         
-        char_attacked <<- TRUE 
+        char_attacked <- TRUE 
         shinyjs::disable('atk_button')
       }
     }
@@ -241,7 +235,7 @@ shinyServer(function(input, output, session) {
   ## ATTACKING
   observeEvent(input$atk_button, {
     char_attacked <<- FALSE 
-    attk_pos <<- subset(master_frame, char==char_curr)
+    attk_pos <- subset(master_frame, char==char_curr)
     
     ## check for possible attacks
     mobs <<- subset(master_frame, team != char_team)$cell
