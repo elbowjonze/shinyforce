@@ -80,8 +80,8 @@ shinyServer(function(input, output, session) {
   turn_order    <- rep(c('Alex', 'Ivan', 'Tex', 'Rocko'), 25)   
   turn_index    <- 1
   char_curr     <- turn_order[turn_index]
-  char_team     <- subset(master_frame, char==turn_order[1])$team
   char_pos      <- subset(master_frame, char==char_curr)
+  char_team     <- char_pos$team
   atks          <- master_frame[0,]
   
   
@@ -159,7 +159,16 @@ shinyServer(function(input, output, session) {
       if(nrow(subset(gpoly, mobs %in% xy_cell)))
       {
         target <- master_frame$char[which(master_frame$cell == xy_cell)]
-        master_frame$health[which(master_frame$char == target)] <<- master_frame$health[which(master_frame$char == target)] - 10
+        new_health <- master_frame$health[which(master_frame$char == target)] - 100
+        master_frame$health[which(master_frame$char == target)] <<- new_health
+        
+        ## murder!
+        if(new_health <= 0)
+        {
+          master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
+          turn_order <<- turn_order[turn_order != target]           ## remove dead person from turn order
+          turn_index <<- min(which(turn_order == char_curr, TRUE))  ## reset turn index
+        }
         
         ## remove red attack highlights
         output$playgrid <- renderPlot({
@@ -193,9 +202,22 @@ shinyServer(function(input, output, session) {
     char_attacked <<- FALSE 
     attk_pos <- subset(master_frame, char==char_curr)
     
+    output$helper1 <- renderPrint({
+      paste0('char_curr: ', char_curr)
+    }) 
+    
     ## check for possible attacks
     mobs <<- subset(master_frame, team != char_team)$cell
     atks <<- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='targets', grid_size)
+    
+    ## generic debuggers
+    output$helper2 <- renderPrint({
+      paste0('curr team: ', char_team)
+    })
+    
+    output$helper3 <- renderTable({
+      atks
+    })  
     
     ## UPDATE PLOT
     if(nrow(atks) > 0)
@@ -217,8 +239,8 @@ shinyServer(function(input, output, session) {
   observeEvent(input$end_turn, {
     turn_index <<- turn_index + 1
     char_curr  <<- turn_order[turn_index]    
-    char_team  <<- subset(master_frame, team != char_team)$team[1]
     char_pos   <<- subset(master_frame, char==char_curr)
+    char_team  <<- char_pos$team
     
     output$whos_turn <- renderText({
       paste0(turn_order[turn_index], ", it's your turn")
@@ -248,4 +270,7 @@ shinyServer(function(input, output, session) {
     enable('atk_button')
   })   
 
+
+  
+  
 })
