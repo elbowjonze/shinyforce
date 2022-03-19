@@ -25,6 +25,7 @@ sidebar <- dashboardSidebar(
 body <- dashboardBody(
     
   useShinyjs(), 
+  useSweetAlert(), 
   
   ## suppress all error messages
   tags$style(type="text/css",
@@ -45,7 +46,10 @@ body <- dashboardBody(
           plotOutput('playgrid', height=400, width=400,
                      click = 'grid_click',
                      hover = 'grid_hover'
-          )
+          ),
+          verbatimTextOutput('helper1'),
+          verbatimTextOutput('helper2'),
+          tableOutput('helper3')
         ),
         column(width = 2),
         column(width = 4,
