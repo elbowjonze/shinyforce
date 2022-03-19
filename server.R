@@ -159,13 +159,24 @@ shinyServer(function(input, output, session) {
       if(nrow(subset(gpoly, mobs %in% xy_cell)))
       {
         target <- master_frame$char[which(master_frame$cell == xy_cell)]
-        new_health <- master_frame$health[which(master_frame$char == target)] - 100
+        new_health <- master_frame$health[which(master_frame$char == target)] - 35
         master_frame$health[which(master_frame$char == target)] <<- new_health
         
         ## murder!
         if(new_health <= 0)
         {
           master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
+          
+          ## check for win condition
+          if(nrow(subset(master_frame, team != char_team)) == 0)
+          {
+            sendSweetAlert(
+              session = session,
+              title = paste0('Team ', char_team, ' wins!'),
+              type= 'success'
+            )
+          }
+          
           turn_order <<- turn_order[turn_order != target]           ## remove dead person from turn order
           turn_index <<- min(which(turn_order == char_curr, TRUE))  ## reset turn index
         }

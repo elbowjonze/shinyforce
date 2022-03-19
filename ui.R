@@ -25,6 +25,7 @@ sidebar <- dashboardSidebar(
 body <- dashboardBody(
     
   useShinyjs(), 
+  useSweetAlert(), 
   
   ## suppress all error messages
   tags$style(type="text/css",
