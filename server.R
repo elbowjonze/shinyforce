@@ -188,7 +188,36 @@ shinyServer(function(input, output, session) {
     slick + settings(infinite=FALSE)
   })
   
+  
+  output$atk_plot <- renderPlot({
+    normal <- function(mu, sigma, x){
+      1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
+    }
 
+    normal_shade <- function(mu, sigma, x, xmax){
+      y <- normal(mu=mu, sigma=sigma, x)
+      y[x < 0 | x > xmax] <- NA
+      return(y)
+    }
+
+    xmin <- 0
+    xmax <- 100
+    mu <- 50
+    sigma <- 15
+    def_val <- 35
+
+    p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
+            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+                          args=list(mu=mu, sigma=sigma)) +
+            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
+                          args=list(mu=mu, sigma=sigma, xmax=def_val)) +
+            scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
+            scale_color_manual('',values=c('red', 'red')) +
+            theme(panel.background = element_rect(fill='white')
+            )
+    return(p)
+  })
+  
   ## one observer to constantly watch plot clicks
   observeEvent(input$grid_click$x,{
 
@@ -223,10 +252,14 @@ shinyServer(function(input, output, session) {
     }
     
     ## ATTACKING!!
+    ## highlight valid targets
     if(nrow(subset(atks, x==x_click & y==y_click)) > 0 & char_attacked==FALSE)
     {
+      ## if valid target is selected
       if(nrow(subset(gpoly, mobs %in% xy_cell)))
       {
+        toggleModal(session, 'atk_modal')
+        
         target <- master_frame$char[which(master_frame$cell == xy_cell)]
         new_health <- master_frame$health[which(master_frame$char == target)] - 35
         master_frame$health[which(master_frame$char == target)] <<- new_health

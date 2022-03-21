@@ -36,6 +36,9 @@ body <- dashboardBody(
   tabItems(
     tabItem(tabName='game',
       actionButton('intro_slides', 'Prologue'),
+      bsModal('atk_modal', 'TESTING', 'no_trigger', size='large',
+              plotOutput('atk_plot')
+      ),
       br(),
       br(),
       fluidRow(
