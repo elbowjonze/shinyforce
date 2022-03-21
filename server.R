@@ -1,3 +1,72 @@
+# ## play around with this plotting code
+# normal <- function(mu, sigma, x){
+#   1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
+# }
+# 
+# normal_shade <- function(mu, sigma, x, xmax){
+#   y <- normal(mu=mu, sigma=sigma, x)
+#   y[x < 0 | x > xmax] <- NA
+#   return(y)
+# }
+# 
+# xmin <- 0
+# xmax <- 100
+# mu <- 50
+# sigma <- 15
+# def_val <- 35
+# 
+# ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
+#   stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+#                 args=list(mu=mu, sigma=sigma)) +
+#   stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
+#                 args=list(mu=mu, sigma=sigma, xmax=def_val)) +
+#   scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
+#   scale_color_manual('',values=c('red', 'red')) +
+#   theme(panel.background = element_rect(fill='white')
+#   )
+# 
+# 
+# 
+# ## FLIP ABOUT X-AXIS
+# xmin <- 0
+# xmax <- 100
+# mu <- 50
+# sigma <- 15
+# def_val <- 75
+# 
+# a_formula <- function(mu, sigma, x)
+# {
+#   -1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
+# }
+# 
+# ## need to find min
+# norm <- expression(-1/(sigma*sqrt(2*pi))*exp(-((root - mu)/sigma)^2))
+# d_norm <- D(norm, 'x')
+# 
+# qq <- function(sigma, mu, x)
+# {
+#   -(-1/(sigma * sqrt(2 * pi)) * (exp(-((x - mu)/sigma)^2) * (2 * (1/sigma * ((x - mu)/sigma)))))
+# }
+# 
+# root <- uniroot(qq, interval=c(0,100), sigma=sigma, mu=mu)$root   
+# cutoff <- eval(norm)
+# 
+# 
+# xs <- seq(xmin, def_val, length.out=100)
+# ysmin <- rep(cutoff, length(xs))
+# ysmax <- a_formula(mu, sigma, xs)
+# 
+# df2 <- data.frame(xs, ysmin, ysmax)
+# zz <- data.frame(x=c(xmin, xmax), g=factor(2))
+# 
+# ggplot(data=zz) + 
+#   stat_function(fun=a_formula, geom='line', args=list(mu=mu, sigma=sigma)) +
+#   geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=df2, fill="#BB000033") +
+#   xlim(0, 100)
+
+
+
+
 ## functionalize ggplot calls
 make_plot <- function(grid, frame, scope=NULL, moves=NULL, atks=NULL)
 {
