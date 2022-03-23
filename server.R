@@ -128,6 +128,8 @@ gpoly$x <- as.integer(gpoly$x)
 
 shinyServer(function(input, output, session) {
 
+  
+  
   ## initial conditions
   master_frame <- data.frame('char' = c('Alex', 'Tex', 'Ivan', 'Rocko'),
                              'team' = c('shiny', 'shiny', 'sas', 'sas'),
@@ -135,7 +137,7 @@ shinyServer(function(input, output, session) {
                              'yloc' = c(1, 2, 4, 5),
                              'cell' = c(1.1, 2.2, 4.4, 5.5),
                              'move' = c(3, 2, 2, 1),
-                             'attk' = c(1, 3, 2, 3),
+                             'atk' = c(1, 3, 2, 3),
                              'health' = c(100, 100, 100, 100),
                              'icon' = c('./sprites/alex_clear.png',
                                         './sprites/tex_clear.png',
@@ -177,8 +179,16 @@ shinyServer(function(input, output, session) {
   }, deleteFile = FALSE)
   
   output$current_char_health <- renderText({
-    paste0(turn_order[turn_index], ' has ', subset(master_frame, char == turn_order[turn_index])$health, ' health remaining')
+    paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
   })
+  
+  output$current_char_move <- renderText({
+    paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
+  })
+  
+  output$current_char_atk <- renderText({
+    paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk)
+  })  
   
   ## intro slides
   output$slick_intro <- renderSlickR({
@@ -189,41 +199,12 @@ shinyServer(function(input, output, session) {
   })
   
   
-  output$atk_plot <- renderPlot({
-    normal <- function(mu, sigma, x){
-      1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
-    }
-
-    normal_shade <- function(mu, sigma, x, xmax){
-      y <- normal(mu=mu, sigma=sigma, x)
-      y[x < 0 | x > xmax] <- NA
-      return(y)
-    }
-
-    xmin <- 0
-    xmax <- 100
-    mu <- 50
-    sigma <- 15
-    def_val <- 35
-
-    p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
-                          args=list(mu=mu, sigma=sigma)) +
-            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
-                          args=list(mu=mu, sigma=sigma, xmax=def_val)) +
-            scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
-            scale_color_manual('',values=c('red', 'red')) +
-            theme(panel.background = element_rect(fill='white')
-            )
-    return(p)
-  })
-  
   ## one observer to constantly watch plot clicks
   observeEvent(input$grid_click$x,{
 
     x_click <- floor(input$grid_click$x)
     y_click <- floor(input$grid_click$y)
-    xy_cell <- paste0(x_click, '.', y_click)
+    xy_cell <<- paste0(x_click, '.', y_click)
     
     ## current positions of characters
     char_curr <- turn_order[turn_index]
@@ -260,40 +241,113 @@ shinyServer(function(input, output, session) {
       {
         toggleModal(session, 'atk_modal')
         
-        target <- master_frame$char[which(master_frame$cell == xy_cell)]
-        new_health <- master_frame$health[which(master_frame$char == target)] - 35
-        master_frame$health[which(master_frame$char == target)] <<- new_health
-        
-        ## murder!
-        if(new_health <= 0)
-        {
-          master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
-          
-          ## check for win condition
-          if(nrow(subset(master_frame, team != char_team)) == 0)
-          {
-            sendSweetAlert(
-              session = session,
-              title = paste0('Team ', char_team, ' wins!'),
-              type= 'success'
-            )
+        ## initial attack distribution plot
+        output$atk_plot <- renderPlot({
+          normal <- function(mu, sigma, x){
+            1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
           }
           
-          turn_order <<- turn_order[turn_order != target]           ## remove dead person from turn order
-          turn_index <<- min(which(turn_order == char_curr, TRUE))  ## reset turn index
-        }
-        
-        ## remove red attack highlights
-        output$playgrid <- renderPlot({
-          make_plot(gpoly, master_frame)
+          normal_shade <- function(mu, sigma, x, xmax){
+            y <- normal(mu=mu, sigma=sigma, x)
+            y[x < 0 | x > xmax] <- NA
+            return(y)
+          }
+          
+          xmin <- 0
+          xmax <- 100
+          mu <- 50
+          sigma <- 15
+          def_val <- 35
+          
+          p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
+            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+                          args=list(mu=mu, sigma=sigma)) +
+            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
+                          args=list(mu=mu, sigma=sigma, xmax=def_val)) +
+            scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
+            scale_color_manual('',values=c('red', 'red')) +
+            theme(panel.background = element_rect(fill='white'))
+          
+          return(p)
         })
-        
-        char_attacked <<- TRUE 
-        updateActionButton(session, 'atk_button', label='Attack Complete')
-        shinyjs::disable('atk_button')
       }
     }
+  })
+  
+  observeEvent(input$atk_roll,{
     
+    updateActionButton(session, 'atk_roll', label='Attack Complete')
+    shinyjs::disable('atk_roll')
+    
+    ## random roll
+    atk_val <- rnorm(1, mean=50, sd=15)
+    
+    output$atk_plot <- renderPlot({
+      normal <- function(mu, sigma, x){
+        1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
+      }
+      
+      normal_shade <- function(mu, sigma, x, xmax){
+        y <- normal(mu=mu, sigma=sigma, x)
+        y[x < 0 | x > xmax] <- NA
+        return(y)
+      }
+      
+      xmin <- 0
+      xmax <- 100
+      mu <- 50
+      sigma <- 15
+      def_val <- 35
+      
+      p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
+        stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+                      args=list(mu=mu, sigma=sigma)) +
+        stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
+                      args=list(mu=mu, sigma=sigma, xmax=def_val)) +
+        geom_vline(xintercept=atk_val, color='green') +
+        scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
+        scale_color_manual('',values=c('red', 'red')) +
+        theme(panel.background = element_rect(fill='white')
+        )
+      
+      return(p)
+    })
+    
+    output$atk_value <- renderPrint({
+      atk_val
+    })
+    
+    target <- master_frame$char[which(master_frame$cell == xy_cell)]
+    new_health <- master_frame$health[which(master_frame$char == target)] - atk_val
+    master_frame$health[which(master_frame$char == target)] <<- new_health
+    
+    ## murder!
+    if(new_health <= 0)
+    {
+      master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
+      
+      ## check for win condition
+      if(nrow(subset(master_frame, team != char_team)) == 0)
+      {
+        sendSweetAlert(
+          session = session,
+          title = paste0('Team ', char_team, ' wins!'),
+          type= 'success'
+        )
+      }
+      
+      turn_order <<- turn_order[turn_order != target]           ## remove dead person from turn order
+      turn_index <<- min(which(turn_order == char_curr, TRUE))  ## reset turn index
+    }
+    
+    ## remove red attack highlights
+    output$playgrid <- renderPlot({
+      make_plot(gpoly, master_frame)
+    })
+    
+    char_attacked <<- TRUE 
+    updateActionButton(session, 'atk_button', label='Attack Complete')
+    shinyjs::disable('atk_button')
   })
   
 
@@ -313,7 +367,7 @@ shinyServer(function(input, output, session) {
   ## ATTACKING
   observeEvent(input$atk_button, {
     char_attacked <<- FALSE 
-    attk_pos <- subset(master_frame, char==char_curr)
+    atk_pos <- subset(master_frame, char==char_curr)
     
     output$helper1 <- renderPrint({
       paste0('char_curr: ', char_curr)
@@ -321,7 +375,7 @@ shinyServer(function(input, output, session) {
     
     ## check for possible attacks
     mobs <<- subset(master_frame, team != char_team)$cell
-    atks <<- loc_map(attk_pos$attk, attk_pos$xloc, attk_pos$yloc, mobs, focus='targets', grid_size)
+    atks <<- loc_map(atk_pos$atk, atk_pos$xloc, atk_pos$yloc, mobs, focus='targets', grid_size)
     
     ## generic debuggers
     output$helper2 <- renderPrint({
@@ -359,6 +413,11 @@ shinyServer(function(input, output, session) {
       paste0(turn_order[turn_index], ", it's your turn")
     })
     
+    ## reset attack modal
+    output$atk_value <- renderPrint({
+      return(NULL)
+    })
+    
     ## update current char detail panel
     output$current_char_icon <- renderImage({
       image <- subset(master_frame, char == turn_order[turn_index])$icon
@@ -368,8 +427,17 @@ shinyServer(function(input, output, session) {
     }, deleteFile = FALSE)
     
     output$current_char_health <- renderText({
-      paste0(turn_order[turn_index], ' has ', subset(master_frame, char == turn_order[turn_index])$health, ' health remaining')
+      paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
     })
+    
+    output$current_char_move <- renderText({
+      paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
+    })
+    
+    output$current_char_atk <- renderText({
+      paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk)
+    })  
+    
 
     ## reset no available attack helper message
     output$no_atk_msg <- renderPrint({
@@ -378,9 +446,11 @@ shinyServer(function(input, output, session) {
     
     updateActionButton(session, 'move_button', label='Move')
     updateActionButton(session, 'atk_button', label='Attack')
+    updateActionButton(session, 'atk_roll', label='Attack!')
     
     enable('move_button')
     enable('atk_button')
+    enable('atk_roll')
   })   
 
 

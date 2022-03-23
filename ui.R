@@ -37,12 +37,14 @@ body <- dashboardBody(
     tabItem(tabName='game',
       actionButton('intro_slides', 'Prologue'),
       bsModal('atk_modal', 'TESTING', 'no_trigger', size='large',
-              plotOutput('atk_plot')
+              plotOutput('atk_plot'),
+              actionBttn('atk_roll', 'Attack!'),
+              verbatimTextOutput('atk_value')
       ),
       br(),
       br(),
       fluidRow(
-        column(width = 4,
+        column(width = 5,
           bsModal('modal_intro', 'PLACEHOLDER MODAL FOR INTRO SLIDE DECK', 'intro_slides', size='large',
                   slickROutput('slick_intro', height='400px', width='800px')
           ),
@@ -54,13 +56,15 @@ body <- dashboardBody(
           verbatimTextOutput('helper2'),
           tableOutput('helper3')
         ),
-        column(width = 2),
-        column(width = 4,
+        column(width = 1),
+        column(width = 6,
           textOutput('whos_turn'),
           br(),
           imageOutput('current_char_icon', height='50px', width='50px'),
           br(),
           verbatimTextOutput('current_char_health'),
+          verbatimTextOutput('current_char_move'),
+          verbatimTextOutput('current_char_atk'),
           br(),
           actionBttn('move_button',
                      label = 'Move',
