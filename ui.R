@@ -1,4 +1,5 @@
 options(stringsAsFactors = FALSE)
+options(scipen=999)
 
 source('funcs/mapper.R')
 

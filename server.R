@@ -65,6 +65,60 @@
 #   xlim(0, 100)
 
 
+## -----------------------------------------------------------
+## how to generate deviates from inverted distrubtion??
+## -----------------------------------------------------------
+
+## approximation may be best
+##  - loop through x vals, capture y-val and generate a number of rows in a dataframe proportional to y-vals
+##  - then we take random sample from this dataset
+# 
+# begin <- Sys.time()
+# deviate_frame <- data.frame(x=numeric(),
+#                             y=numeric()
+# )
+# 
+# for(i in xmin:xmax)
+# {
+#   prob <- a_formula2(mu, sigma, i, cutoff)
+#   
+#   ## how many rows to add for this xval?
+#   rowsout <- as.integer(round(prob * 10000,0))
+#   templine <- c(i, prob)
+#   
+#   tempframe <- NULL
+#   for(j in 1:rowsout)
+#   {
+#     tempframe <- rbind(tempframe, templine)
+#   }
+#   
+#   deviate_frame <- rbind(deviate_frame, tempframe)
+# }
+# 
+# rownames(deviate_frame) <- NULL
+# names(deviate_frame) <- c('roll', 'prob')
+# 
+# 
+# Sys.time() - begin  ## 1.2s - too slow, vectorize
+# 
+# 
+# 
+# begin <- Sys.time()
+# qq <- a_formula2(mu, sigma, 1:100, cutoff)
+# qq <- as.integer(round(qq*10000, 0))
+# qq2 <- rep(1:100, qq)
+# Sys.time() - begin  ## 0.0034s - bingo!   just sample from this vector
+# 
+# hist(qq2, breaks=100)
+# 
+# 
+# ggplot(data=zz) + 
+#   stat_function(fun=a_formula2, geom='line', args=list(mu=mu, sigma=sigma, cutoff=cutoff)) +
+#   geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=df2, fill="#BB000033") +
+#   geom_vline(xintercept=sample(qq2, size=1)) +
+#   xlim(0, 100)
+
+
 
 
 ## functionalize ggplot calls
