@@ -1,4 +1,36 @@
 
+## -------------------------------------------
+## attack/defense calculation functions 
+## -------------------------------------------
+
+## normal distribution
+normal <- function(mu, sigma, x){
+  1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
+}
+
+normal_shade <- function(mu, sigma, x, xmax){
+  y <- normal(mu=mu, sigma=sigma, x)
+  y[x < 0 | x > xmax] <- NA
+  return(y)
+}
+
+## inverted normal distribution
+inv_norm <- expression(-1/(sigma*sqrt(2*pi))*exp(-((root - mu)/sigma)^2))
+inv_norm_deriv <- D(inv_norm, 'root')  ## returns function of first derivative
+
+calc_inv_normal_deriv <- function(sigma, mu, root)
+{
+  -(-1/(sigma * sqrt(2 * pi)) * (exp(-((root - mu)/sigma)^2) * (2 * (1/sigma * ((root - mu)/sigma)))))
+}
+
+inv_norm_pdf <- function(mu, sigma, x, cutoff)
+{
+  -1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2) + abs(cutoff)
+}
+
+
+
+
 ## mapping for all possible characters manipulations
 orientation_map <- data.frame('head_start' = c('u', 'l', 'd', 'r', 'u', 'l', 'd', 'r',
                                                'u', 'r', 'd', 'l', 'u', 'r', 'd', 'l',
@@ -21,128 +53,6 @@ orientation_map <- data.frame('head_start' = c('u', 'l', 'd', 'r', 'u', 'l', 'd'
                                                'r', 'r', 'l', 'l', 'u', 'd', 'u', 'd',
                                                'l', 'r', 'l', 'r', 'd', 'd', 'u', 'u')
 )
-                                                                                              
-# ## play around with this plotting code
-# normal <- function(mu, sigma, x){
-#   1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
-# }
-# 
-# normal_shade <- function(mu, sigma, x, xmax){
-#   y <- normal(mu=mu, sigma=sigma, x)
-#   y[x < 0 | x > xmax] <- NA
-#   return(y)
-# }
-# 
-# xmin <- 0
-# xmax <- 100
-# mu <- 50
-# sigma <- 15
-# def_val <- 35
-# 
-# ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-#   stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
-#                 args=list(mu=mu, sigma=sigma)) +
-#   stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
-#                 args=list(mu=mu, sigma=sigma, xmax=def_val)) +
-#   scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
-#   scale_color_manual('',values=c('red', 'red')) +
-#   theme(panel.background = element_rect(fill='white')
-#   )
-# 
-# 
-# 
-# ## FLIP ABOUT X-AXIS
-# xmin <- 0
-# xmax <- 100
-# mu <- 50
-# sigma <- 15
-# def_val <- 75
-# 
-# a_formula <- function(mu, sigma, x)
-# {
-#   -1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
-# }
-# 
-# ## need to find min
-# norm <- expression(-1/(sigma*sqrt(2*pi))*exp(-((root - mu)/sigma)^2))
-# d_norm <- D(norm, 'x')
-# 
-# qq <- function(sigma, mu, x)
-# {
-#   -(-1/(sigma * sqrt(2 * pi)) * (exp(-((x - mu)/sigma)^2) * (2 * (1/sigma * ((x - mu)/sigma)))))
-# }
-# 
-# root <- uniroot(qq, interval=c(0,100), sigma=sigma, mu=mu)$root   
-# cutoff <- eval(norm)
-# 
-# 
-# xs <- seq(xmin, def_val, length.out=100)
-# ysmin <- rep(cutoff, length(xs))
-# ysmax <- a_formula(mu, sigma, xs)
-# 
-# df2 <- data.frame(xs, ysmin, ysmax)
-# zz <- data.frame(x=c(xmin, xmax), g=factor(2))
-# 
-# ggplot(data=zz) + 
-#   stat_function(fun=a_formula, geom='line', args=list(mu=mu, sigma=sigma)) +
-#   geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=df2, fill="#BB000033") +
-#   xlim(0, 100)
-
-
-## -----------------------------------------------------------
-## how to generate deviates from inverted distrubtion??
-## -----------------------------------------------------------
-
-## approximation may be best
-##  - loop through x vals, capture y-val and generate a number of rows in a dataframe proportional to y-vals
-##  - then we take random sample from this dataset
-# 
-# begin <- Sys.time()
-# deviate_frame <- data.frame(x=numeric(),
-#                             y=numeric()
-# )
-# 
-# for(i in xmin:xmax)
-# {
-#   prob <- a_formula2(mu, sigma, i, cutoff)
-#   
-#   ## how many rows to add for this xval?
-#   rowsout <- as.integer(round(prob * 10000,0))
-#   templine <- c(i, prob)
-#   
-#   tempframe <- NULL
-#   for(j in 1:rowsout)
-#   {
-#     tempframe <- rbind(tempframe, templine)
-#   }
-#   
-#   deviate_frame <- rbind(deviate_frame, tempframe)
-# }
-# 
-# rownames(deviate_frame) <- NULL
-# names(deviate_frame) <- c('roll', 'prob')
-# 
-# 
-# Sys.time() - begin  ## 1.2s - too slow, vectorize
-# 
-# 
-# 
-# begin <- Sys.time()
-# qq <- a_formula2(mu, sigma, 1:100, cutoff)
-# qq <- as.integer(round(qq*10000, 0))
-# qq2 <- rep(1:100, qq)
-# Sys.time() - begin  ## 0.0034s - bingo!   just sample from this vector
-# 
-# hist(qq2, breaks=100)
-# 
-# 
-# ggplot(data=zz) + 
-#   stat_function(fun=a_formula2, geom='line', args=list(mu=mu, sigma=sigma, cutoff=cutoff)) +
-#   geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=df2, fill="#BB000033") +
-#   geom_vline(xintercept=sample(qq2, size=1)) +
-#   xlim(0, 100)
-
-
 
 
 ## functionalize ggplot calls
@@ -325,6 +235,18 @@ shinyServer(function(input, output, session) {
         attacker <<- subset(master_frame, char==char_curr)
         defender <<- subset(master_frame, cell==xy_cell)
         
+        ## determine relative locations of chars ... is attacker facing defender and vice versa?
+        if( (attacker$xloc < defender$xloc & attacker$face == 'r') |
+            (attacker$xloc > defender$xloc & attacker$face == 'l') |
+            (attacker$yloc < defender$yloc & attacker$face == 'u') |
+            (attacker$yloc > defender$yloc & attacker$face == 'd') )
+        {
+          atk_dist <- 'normal'
+        }else
+        {
+          atk_dist <- 'flip_vertical'
+        }
+        
         toggleModal(session, 'atk_modal')
         
         output$whos_fighting <- renderPrint({
@@ -333,31 +255,40 @@ shinyServer(function(input, output, session) {
         
         ## initial attack distribution plot
         output$atk_plot <- renderPlot({
-          normal <- function(mu, sigma, x){
-            1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
-          }
-          
-          normal_shade <- function(mu, sigma, x, xmax){
-            y <- normal(mu=mu, sigma=sigma, x)
-            y[x < 0 | x > xmax] <- NA
-            return(y)
-          }
-          
           xmin <- 0
           xmax <- 100
           mu <- attacker$atk_mu
           sigma <- attacker$atk_sigma
           def_val <- defender$def
           
-          p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
-                          args=list(mu=mu, sigma=sigma)) +
-            stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
-                          args=list(mu=mu, sigma=sigma, xmax=def_val)) +
-            scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
-            scale_color_manual('',values=c('red', 'red')) +
-            theme(panel.background = element_rect(fill='white'))
-          
+          if(atk_dist == 'normal')
+          {
+            p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
+              stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+                            args=list(mu=mu, sigma=sigma)) +
+              stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
+                            args=list(mu=mu, sigma=sigma, xmax=def_val)) +
+              scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
+              scale_color_manual('',values=c('red', 'red')) +
+              theme(panel.background = element_rect(fill='white'))
+          }else
+          {
+            root <- uniroot(calc_inv_normal_deriv, interval=c(xmin,xmax), sigma=sigma, mu=mu)$root
+            cutoff <- eval(inv_norm)
+  
+            xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
+            ysmin <- rep(0, length(xs))
+            ysmax <- inv_norm_pdf(mu, sigma, xs, cutoff)
+  
+            shade_df <- data.frame(xs, ysmin, ysmax)
+            df2 <- data.frame(x=c(xmin, xmax), g=factor(2))
+  
+            p <- ggplot(data=df2) +
+                    stat_function(fun=inv_norm_pdf, geom='line', args=list(mu=mu, sigma=sigma, cutoff=cutoff)) +
+                    geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
+                    xlim(xmin, xmax)
+          }
+            
           return(p)
         })
       }
@@ -369,77 +300,103 @@ shinyServer(function(input, output, session) {
     updateActionButton(session, 'atk_roll', label='Attack Complete')
     shinyjs::disable('atk_roll')
     
-    xmin <- 0
-    xmax <- 100
-    mu <- attacker$atk_mu
-    sigma <- attacker$atk_sigma
-    def_val <- defender$def
-    
-    ## random roll
-    atk_val <- rnorm(1, mean=mu, sd=sigma)
-    
     output$atk_plot <- renderPlot({
-      normal <- function(mu, sigma, x){
-        1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
+      
+      xmin <- 0
+      xmax <- 100
+      mu <- attacker$atk_mu
+      sigma <- attacker$atk_sigma
+      def_val <- defender$def
+      
+      # random roll
+      if(atk_dist == 'normal')
+      {
+        atk_val <<- rnorm(1, mean=mu, sd=sigma)
+        
+        p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
+          stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+                        args=list(mu=mu, sigma=sigma)) +
+          stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
+                        args=list(mu=mu, sigma=sigma, xmax=def_val)) +
+          geom_vline(xintercept=atk_val, color='green') +
+          scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
+          scale_color_manual('',values=c('red', 'red')) +
+          theme(panel.background = element_rect(fill='white')
+          )
+      }else
+      {
+        ## find local min/max
+        root <- uniroot(calc_inv_normal_deriv, interval=c(xmin,xmax), sigma=sigma, mu=mu)$root
+        cutoff <- eval(inv_norm)
+        
+        xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
+        ysmin <- rep(0, length(xs))
+        ysmax <- inv_norm_pdf(mu, sigma, xs, cutoff)
+        
+        shade_df <- data.frame(xs, ysmin, ysmax)
+        df2 <- data.frame(x=c(xmin, xmax), g=factor(2))
+        
+        ## grab random deviate
+        inv_probs <- inv_norm_pdf(mu, sigma, xmin:xmax, cutoff) ## calc probability for each step along x-axis
+        inv_counts <- as.integer(round(inv_probs*10000, 0))     ## convert probs into reasonably sized integer units
+        inv_array <- rep(xmin:xmax, inv_counts)                 ## create one array to sample from
+
+        atk_val <<- sample(inv_array, size=1)
+
+        p <- ggplot(data=df2) +
+                stat_function(fun=inv_norm_pdf, geom='line', args=list(mu=mu, sigma=sigma, cutoff=cutoff)) +
+                geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
+                geom_vline(xintercept=atk_val) +
+                xlim(xmin, xmax)
       }
-      
-      normal_shade <- function(mu, sigma, x, xmax){
-        y <- normal(mu=mu, sigma=sigma, x)
-        y[x < 0 | x > xmax] <- NA
-        return(y)
-      }
-      
-      p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-        stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
-                      args=list(mu=mu, sigma=sigma)) +
-        stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
-                      args=list(mu=mu, sigma=sigma, xmax=def_val)) +
-        geom_vline(xintercept=atk_val, color='green') +
-        scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
-        scale_color_manual('',values=c('red', 'red')) +
-        theme(panel.background = element_rect(fill='white')
-        )
-      
       return(p)
     })
-    
+      
+      
+    ## resolve attack outcome
     output$atk_value <- renderPrint({
+      
       atk_msg <- paste0('attack value = ', atk_val)
       if(atk_val <= def_val)
       {
         atk_msg <- paste0(atk_msg, ' did not get through defense, no damage done!')
       }
-      return(atk_msg)
-    })
-    
-    target <- master_frame$char[which(master_frame$cell == xy_cell)]
-    if(atk_val > def_val)
-    {
-      new_health <- master_frame$health[which(master_frame$char == target)] - atk_val
-      master_frame$health[which(master_frame$char == target)] <<- new_health
-    }else
-    {
-      new_health <- master_frame$health[which(master_frame$char == target)]
-    }
-    
-    ## murder!
-    if(new_health <= 0)
-    {
-      master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
       
-      ## check for win condition
-      if(nrow(subset(master_frame, team != char_team)) == 0)
+      ## -----------------------------
+      ## update health values
+      ## -----------------------------
+      target <- master_frame$char[which(master_frame$cell == xy_cell)]
+      
+      if(atk_val > def_val)
       {
-        sendSweetAlert(
-          session = session,
-          title = paste0('Team ', char_team, ' wins!'),
-          type= 'success'
-        )
+        new_health <- master_frame$health[which(master_frame$char == target)] - atk_val
+        master_frame$health[which(master_frame$char == target)] <<- new_health
+      }else
+      {
+        new_health <- master_frame$health[which(master_frame$char == target)]
       }
       
-      turn_order <<- turn_order[turn_order != target]           ## remove dead person from turn order
-      turn_index <<- min(which(turn_order == char_curr, TRUE))  ## reset turn index
-    }
+      ## murder!
+      if(new_health <= 0)
+      {
+        master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
+        
+        ## check for win condition
+        if(nrow(subset(master_frame, team != char_team)) == 0)
+        {
+          sendSweetAlert(
+            session = session,
+            title = paste0('Team ', char_team, ' wins!'),
+            type= 'success'
+          )
+        }
+        
+        turn_order <<- turn_order[turn_order != target]           ## remove dead person from turn order
+        turn_index <<- min(which(turn_order == char_curr, TRUE))  ## reset turn index
+      }
+      
+      return(atk_msg)
+    })
     
     ## remove red attack highlights
     output$playgrid <- renderPlot({
@@ -570,11 +527,6 @@ shinyServer(function(input, output, session) {
     curr_face <- subset(master_frame, char==char_curr)$face
     out_head <- subset(orientation_map, manipulation=='flip_horizontal' & head_start==curr_head & face_start==curr_face)$head_end
     out_face <- subset(orientation_map, manipulation=='flip_horizontal' & head_start==curr_head & face_start==curr_face)$face_end
-    
-    message('out_head')
-    message(out_head)
-    message('out_face')
-    message(out_face)
     
     ## update master frame
     master_frame$head[which(master_frame$char == char_curr)] <<- out_head
