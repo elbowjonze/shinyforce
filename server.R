@@ -353,7 +353,7 @@ shinyServer(function(input, output, session) {
         toggleModal(session, 'atk_modal')
         
         output$whos_fighting <- renderPrint({
-          paste0(char_curr, ' is attacking ', defender$char, ' atk mu = ', attacker$atk_mu, ' atk sigma = ', attacker$atk_sigma, ' def = ', defender$def)  
+          paste0(char_curr, ' is attacking ', defender$char, ' param1 = ', attacker$atk_param1, ' param2 = ', attacker$atk_param2, ' def = ', defender$def)  
         })
         
         ## initial attack distribution plot
