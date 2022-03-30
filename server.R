@@ -1,53 +1,129 @@
+## generalize stat function manipulations
+distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2)
+{
+  if(atk_dist=='normal' & atk_state=='standard')
+  {
+    pdf <- normal_pdf
+    expression <- normal_expression
+    calc_deriv <- calc_normal_deriv
+    cutoff <- 0
+  }
+  
+  if(atk_dist=='normal' & atk_state=='inverted')
+  {
+    pdf <- normal_inv_pdf
+    expression <- normal_inv_expression
+    calc_deriv <- calc_normal_inv_deriv
+    root <- uniroot(calc_deriv, interval=c(xmin,xmax), param1=param1, param2=param2)$root
+    cutoff <- eval(expression)
+  }
+  
+  if(atk_dist=='gamma' & atk_state=='standard')
+  {
+    pdf <- gamma_pdf
+    expression <- gamma_expression
+    calc_deriv <- calc_gamma_deriv
+    cutoff <- 0
+  }
+  
+  if(atk_dist=='gamma' & atk_state=='inverted')
+  {
+    pdf <- gamma_inv_pdf
+    expression <- gamma_inv_expression
+    calc_deriv <- calc_gamma_inv_deriv
+    root <- uniroot(calc_deriv, interval=c(xmin,xmax), param1=param1, param2=param2)$root
+    cutoff <- abs(eval(expression))
+  }
+  
+  out <- list(pdf, cutoff)
+  return(out)
+}
 
+
+deviate_grabber <- function(pdf, param1, param2, xmin, xmax, cutoff)
+{
+  ## grab random deviate
+  dev_probs <- pdf(param1, param2, xmin:xmax, cutoff) ## calc probability for each step along x-axis
+  dev_counts <- as.integer(round(dev_probs*10000, 0)) ## convert probs into reasonably sized integer units
+  dev_array <- rep(xmin:xmax, dev_counts)             ## create one array to sample from
+
+  atk_val <- sample(dev_array, size=1)
+  return(atk_val)
+}
+
+
+  
 ## -------------------------------------------
 ## STANDARD attack/defense calculation functions 
 ## -------------------------------------------
 
+##!! use generic param1, param2 instead of standard variable names to generalize later function calls
+
 ## NORMAL distribution
-normal_pdf <- function(mu, sigma, x){
-  1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
+# param1 --> mu
+# param2 --> sigma
+normal_pdf <- function(param1, param2, x, cutoff){
+  1/(param2*sqrt(2*pi))*exp(-((x-param1)/param2)^2) + abs(cutoff)
 }
 
-normal_shade <- function(mu, sigma, x, xmax){
-  y <- normal(mu=mu, sigma=sigma, x)
-  y[x < 0 | x > xmax] <- NA
-  return(y)
+normal_expression <- expression(1/(param2*sqrt(2*pi))*exp(-((root - param1)/param2)^2))
+# normal_deriv <- D(normal_expression, 'root')    ## returns function of first derivative, what we define calc_normal_deriv below
+
+calc_normal_deriv <- function(param1, param2, root)
+{
+  -(1/(param2 * sqrt(2 * pi)) * (exp(-((root - param1)/param2)^2) * (2 * (1/param2 * ((root - param1)/param2)))))
 }
 
 ## GAMMA distribution
-gamma_pdf <- function(alpha, beta, x)
+# param1 --> alpha
+# param2 --> beta
+gamma_pdf <- function(param1, param2, x, cutoff)
 {
-  (x^(alpha - 1)*exp(-x/beta)) / ((beta^alpha) * gamma(alpha)) 
+  ((x^(param1 - 1)*exp(-x/param2)) / ((param2^param1) * gamma(param1))) + abs(cutoff)
 }
 
-gamma_shade <- function(alpha, beta, x, xmax)
+gamma_expression <- expression((root^(param1 - 1)*exp(-root/param2)) / ((param2^param1) * gamma(param1)))
+
+calc_gamma_deriv <- function(param1, param2, root)
 {
-  y <- beta_pdf(alpha, beta, x)
-  y[x < 0 | x > xmax] <- NA
-  return(y)
+  (root^((param1 - 1) - 1) * (param1 - 1) * exp(-root/param2) - root^(param1 - 1) * (exp(-root/param2) * (1/param2)))/((param2^param1) * gamma(param1))
 }
-
-
 
 ## -------------------------------------------
 ## INVERTED attack/defense calculation functions 
 ## -------------------------------------------
 
-## IN CASE I NEED TO DO THIS AGAIN!!
-  ## inv_norm <- expression(-1/(sigma*sqrt(2*pi))*exp(-((root - mu)/sigma)^2))
-  ## inv_norm_deriv <- D(inv_norm, 'root')    ## returns function of first derivative, what we define calc_inv_normal_deriv as below
-
-calc_inv_normal_deriv <- function(sigma, mu, root)
+## NORMAL distribution
+# param1 --> mu
+# param2 --> sigma
+normal_inv_pdf <- function(param1, param2, x, cutoff)
 {
-  -(-1/(sigma * sqrt(2 * pi)) * (exp(-((root - mu)/sigma)^2) * (2 * (1/sigma * ((root - mu)/sigma)))))
+  -1/(param2*sqrt(2*pi))*exp(-((x-param1)/param2)^2) + abs(cutoff)
 }
 
-inv_norm_pdf <- function(mu, sigma, x, cutoff)
+normal_inv_expression <- expression(-1/(param2*sqrt(2*pi))*exp(-((root - param1)/param2)^2))
+
+calc_normal_inv_deriv <- function(param1, param2, root)
 {
-  -1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2) + abs(cutoff)
+  -(-1/(param2 * sqrt(2 * pi)) * (exp(-((root - param1)/param2)^2) * (2 * (1/param2 * ((root - param1)/param2)))))
 }
 
+## GAMMA distribution
+gamma_inv_pdf <- function(param1, param2, x, cutoff)
+{
+  -(x^(param1 - 1)*exp(-x/param2)) / ((param2^param1) * gamma(param1)) + abs(cutoff)
+}
 
+gamma_inv_expression <- expression( -(root^(param1 - 1)*exp(-root/param2)) / ((param2^param1) * gamma(param1)) )
+
+calc_gamma_inv_deriv <- function(param1, param2, root)
+{
+  -((root^((param1 - 1) - 1) * (param1 - 1) * exp(-root/param2) - root^(param1 - 1) * (exp(-root/param2) * (1/param2)))/((param2^param1) * gamma(param1)))
+}
+  
+  
+  
+  
 
 
 
@@ -147,15 +223,16 @@ shinyServer(function(input, output, session) {
   ## initial conditions
   master_frame <- data.frame('char' = c('Alex', 'Tex', 'Ivan', 'Rocko'),
                              'team' = c('shiny', 'shiny', 'sas', 'sas'),
-                             'xloc' = c(1, 2, 4, 5),
-                             'yloc' = c(1, 2, 4, 5),
-                             'cell' = c(1.1, 2.2, 4.4, 5.5),
+                             'xloc' = c(1, 2, 1, 5),
+                             'yloc' = c(1, 2, 2, 5),
+                             'cell' = c(1.1, 2.2, 1.2, 5.5),
                              'move' = c(3, 2, 2, 1),
                              'atk_range' = c(1, 3, 2, 3),
                              'health' = c(100, 100, 100, 100),
-                             'atk_mu' = c(50, 65, 34, 70),
-                             'atk_sigma' = c(15, 25, 20, 10),
-                             'def' = c(50, 35, 66, 30),
+                             'atk_dist' = c('normal', 'normal', 'gamma', 'gamma'),
+                             'atk_param1' = c(45, 55, 2, 2),
+                             'atk_param2' = c(15, 25, 14, 11),
+                             'def' = c(44, 35, 50, 40),
                              'icon' = c('./sprites/alex_u_r.png',   ## icon format:  u/d/l/r stands for up/down/left/right.  First char is head orientation, second char is direction char is facing
                                         './sprites/tex_u_r.png',
                                         './sprites/ivan_u_l.png',
@@ -267,10 +344,10 @@ shinyServer(function(input, output, session) {
             (attacker$yloc < defender$yloc & attacker$face == 'u') |
             (attacker$yloc > defender$yloc & attacker$face == 'd') )
         {
-          atk_dist <- 'normal'
+          atk_state <<- 'standard'
         }else
         {
-          atk_dist <- 'flip_vertical'
+          atk_state <<- 'inverted'
         }
         
         toggleModal(session, 'atk_modal')
@@ -281,38 +358,38 @@ shinyServer(function(input, output, session) {
         
         ## initial attack distribution plot
         output$atk_plot <- renderPlot({
-          xmin <- 0
+          xmin <- 1
           xmax <- 100
-          mu <- attacker$atk_mu
-          sigma <- attacker$atk_sigma
-          def_val <- defender$def
+          atk_dist <- attacker$atk_dist
+          param1 <- attacker$atk_param1
+          param2 <- attacker$atk_param2
+          def_val <<- defender$def
           
-          if(atk_dist == 'normal')
+          dist_out <- distribution_mangler(atk_dist, atk_state, xmin, xmax, param1, param2)
+          pdf <- dist_out[[1]]
+          cutoff <- dist_out[[2]]
+          
+          xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
+          ysmin <- rep(0, length(xs))
+          ysmax <- pdf(param1, param2, xs, cutoff)
+          shade_df <- data.frame(xs, ysmin, ysmax)
+          dummy_df <- data.frame(x=c(xmin, xmax))
+
+
+          if(atk_dist=='normal')
           {
-            p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-              stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_pdf, geom='line',
-                            args=list(mu=mu, sigma=sigma)) +
-              stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
-                            args=list(mu=mu, sigma=sigma, xmax=def_val)) +
-              scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
-              scale_color_manual('',values=c('red', 'red')) +
-              theme(panel.background = element_rect(fill='white'))
-          }else
+            p <- ggplot(dummy_df, aes(x=x)) +
+                  stat_function(fun=pdf, geom='line', args=list(param2, param1, cutoff=cutoff)) +
+                  geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
+                  xlim(xmin, xmax)
+          }
+          
+          if(atk_dist=='gamma')
           {
-            root <- uniroot(calc_inv_normal_deriv, interval=c(xmin,xmax), sigma=sigma, mu=mu)$root
-            cutoff <- eval(inv_norm)
-  
-            xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
-            ysmin <- rep(0, length(xs))
-            ysmax <- inv_norm_pdf(mu, sigma, xs, cutoff)
-  
-            shade_df <- data.frame(xs, ysmin, ysmax)
-            df2 <- data.frame(x=c(xmin, xmax), g=factor(2))
-  
-            p <- ggplot(data=df2) +
-                    stat_function(fun=inv_norm_pdf, geom='line', args=list(mu=mu, sigma=sigma, cutoff=cutoff)) +
-                    geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
-                    xlim(xmin, xmax)
+            p <- ggplot(dummy_df, aes(x=x)) +
+                  stat_function(data=data.frame(x=c(xmin, xmax)), fun=pdf, geom='line', args=list(param1=param1, param2=param2, cutoff=cutoff)) +
+                  geom_ribbon(data=shade_df, aes(x=xs, ymin=ysmin, ymax=ysmax), fill="#BB000033") +
+                  xlim(xmin, xmax)
           }
             
           return(p)
@@ -327,54 +404,47 @@ shinyServer(function(input, output, session) {
     shinyjs::disable('atk_roll')
     
     output$atk_plot <- renderPlot({
-      
-      xmin <- 0
+   
+      xmin <- 1
       xmax <- 100
-      mu <- attacker$atk_mu
-      sigma <- attacker$atk_sigma
-      def_val <- defender$def
+      atk_dist <- attacker$atk_dist
+      param1 <- attacker$atk_param1
+      param2 <- attacker$atk_param2
+      def_val <<- defender$def
+      
+      dist_out <- distribution_mangler(atk_dist, atk_state, xmin, xmax, param1, param2)
+      pdf <- dist_out[[1]]
+      cutoff <- dist_out[[2]]      
+      
+      xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
+      ysmin <- rep(0, length(xs))
+      ysmax <- pdf(param1, param2, xs, cutoff)
+      shade_df <- data.frame(xs, ysmin, ysmax)
+      dummy_df <- data.frame(x=c(xmin, xmax))      
       
       # random roll
-      if(atk_dist == 'normal')
+      if(atk_dist=='normal')
       {
-        atk_val <<- rnorm(1, mean=mu, sd=sigma)
+        atk_val <<- round(rnorm(1, mean=param1, sd=param2), digits=0)
         
-        p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-          stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_pdf, geom='line',
-                        args=list(mu=mu, sigma=sigma)) +
-          stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
-                        args=list(mu=mu, sigma=sigma, xmax=def_val)) +
+        p <- ggplot(dummy_df, aes(x=x)) +
+          stat_function(fun=pdf, geom='line', args=list(param2, param1, cutoff=cutoff)) +
+          geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
           geom_vline(xintercept=atk_val, color='green') +
-          scale_x_continuous(breaks=seq(from=xmin, to=xmax, by=10)) +
-          scale_color_manual('',values=c('red', 'red')) +
-          theme(panel.background = element_rect(fill='white')
-          )
-      }else
-      {
-        ## find local min/max
-        root <- uniroot(calc_inv_normal_deriv, interval=c(xmin,xmax), sigma=sigma, mu=mu)$root
-        cutoff <- eval(inv_norm)
-        
-        xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
-        ysmin <- rep(0, length(xs))
-        ysmax <- inv_norm_pdf(mu, sigma, xs, cutoff)
-        
-        shade_df <- data.frame(xs, ysmin, ysmax)
-        df2 <- data.frame(x=c(xmin, xmax), g=factor(2))
-        
-        ## grab random deviate
-        inv_probs <- inv_norm_pdf(mu, sigma, xmin:xmax, cutoff) ## calc probability for each step along x-axis
-        inv_counts <- as.integer(round(inv_probs*10000, 0))     ## convert probs into reasonably sized integer units
-        inv_array <- rep(xmin:xmax, inv_counts)                 ## create one array to sample from
-
-        atk_val <<- sample(inv_array, size=1)
-
-        p <- ggplot(data=df2) +
-                stat_function(fun=inv_norm_pdf, geom='line', args=list(mu=mu, sigma=sigma, cutoff=cutoff)) +
-                geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
-                geom_vline(xintercept=atk_val) +
-                xlim(xmin, xmax)
+          xlim(xmin, xmax)
       }
+      
+      if(atk_dist=='gamma')
+      {
+        atk_val <<- deviate_grabber(pdf, param1, param2, xmin, xmax, cutoff)
+        
+        p <- ggplot(dummy_df, aes(x=x)) +
+          stat_function(data=data.frame(x=c(xmin, xmax)), fun=pdf, geom='line', args=list(param1=param1, param2=param2, cutoff=cutoff)) +
+          geom_ribbon(data=shade_df, aes(x=xs, ymin=ysmin, ymax=ysmax), fill="#BB000033") +
+          geom_vline(xintercept=atk_val, color='green') +
+          xlim(xmin, xmax)
+      }      
+      
       return(p)
     })
       
