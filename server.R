@@ -1,10 +1,10 @@
 
 ## -------------------------------------------
-## attack/defense calculation functions 
+## STANDARD attack/defense calculation functions 
 ## -------------------------------------------
 
-## normal distribution
-normal <- function(mu, sigma, x){
+## NORMAL distribution
+normal_pdf <- function(mu, sigma, x){
   1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2)
 }
 
@@ -14,9 +14,28 @@ normal_shade <- function(mu, sigma, x, xmax){
   return(y)
 }
 
-## inverted normal distribution
-inv_norm <- expression(-1/(sigma*sqrt(2*pi))*exp(-((root - mu)/sigma)^2))
-inv_norm_deriv <- D(inv_norm, 'root')  ## returns function of first derivative
+## GAMMA distribution
+gamma_pdf <- function(alpha, beta, x)
+{
+  (x^(alpha - 1)*exp(-x/beta)) / ((beta^alpha) * gamma(alpha)) 
+}
+
+gamma_shade <- function(alpha, beta, x, xmax)
+{
+  y <- beta_pdf(alpha, beta, x)
+  y[x < 0 | x > xmax] <- NA
+  return(y)
+}
+
+
+
+## -------------------------------------------
+## INVERTED attack/defense calculation functions 
+## -------------------------------------------
+
+## IN CASE I NEED TO DO THIS AGAIN!!
+  ## inv_norm <- expression(-1/(sigma*sqrt(2*pi))*exp(-((root - mu)/sigma)^2))
+  ## inv_norm_deriv <- D(inv_norm, 'root')    ## returns function of first derivative, what we define calc_inv_normal_deriv as below
 
 calc_inv_normal_deriv <- function(sigma, mu, root)
 {
@@ -27,6 +46,13 @@ inv_norm_pdf <- function(mu, sigma, x, cutoff)
 {
   -1/(sigma*sqrt(2*pi))*exp(-((x-mu)/sigma)^2) + abs(cutoff)
 }
+
+
+
+
+
+
+
 
 
 
@@ -264,7 +290,7 @@ shinyServer(function(input, output, session) {
           if(atk_dist == 'normal')
           {
             p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-              stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+              stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_pdf, geom='line',
                             args=list(mu=mu, sigma=sigma)) +
               stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
                             args=list(mu=mu, sigma=sigma, xmax=def_val)) +
@@ -314,7 +340,7 @@ shinyServer(function(input, output, session) {
         atk_val <<- rnorm(1, mean=mu, sd=sigma)
         
         p <- ggplot(data.frame(x=c(xmin, xmax)), aes(x=x, color=g)) +
-          stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal, geom='line',
+          stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_pdf, geom='line',
                         args=list(mu=mu, sigma=sigma)) +
           stat_function(data=data.frame(x=c(xmin, xmax), g=factor(2)), fun=normal_shade, geom = 'area', fill = 'red', alpha = 0.2,
                         args=list(mu=mu, sigma=sigma, xmax=def_val)) +
