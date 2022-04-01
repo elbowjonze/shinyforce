@@ -5,7 +5,7 @@
 ## NORMAL distribution
 # param1 --> mu
 # param2 --> sigma
-normal_pdf <- function(param1, param2, x, x_shift, y_shift){ 1/(param2*sqrt(2*pi))*exp(-((x-param1)/param2)^2) + abs(y_shift) }
+normal_pdf <- function(param1, param2, x, x_shift, y_shift){ 1/(param2*sqrt(2*pi))*exp(-((x-param1)/param2)^2) }
 normal_inv_pdf <- function(param1, param2, x, x_shift, y_shift){ -1/(param2*sqrt(2*pi))*exp(-((x-param1)/param2)^2) + abs(y_shift) }
 normal_flip_pdf <- function(param1, param2, x, x_shift, y_shift){ 1/(param2*sqrt(2*pi))*exp(-(((-x + x_shift) - param1)/param2)^2) }
 normal_flipinv_pdf <- function(param1, param2, x, x_shift, y_shift){ -1/(param2*sqrt(2*pi))*exp(-(((-x + x_shift) -param1)/param2)^2) + abs(y_shift) }
@@ -13,10 +13,18 @@ normal_flipinv_pdf <- function(param1, param2, x, x_shift, y_shift){ -1/(param2*
 ## GAMMA distribution
 # param1 --> alpha
 # param2 --> beta
-gamma_pdf <- function(param1, param2, x, x_shift, y_shift){ ((x^(param1 - 1)*exp(-x/param2)) / ((param2^param1) * gamma(param1))) + abs(y_shift) }
+gamma_pdf <- function(param1, param2, x, x_shift, y_shift){ ((x^(param1 - 1)*exp(-x/param2)) / ((param2^param1) * gamma(param1))) }
 gamma_inv_pdf <- function(param1, param2, x, x_shift, y_shift){ -(x^(param1 - 1)*exp(-x/param2)) / ((param2^param1) * gamma(param1)) + abs(y_shift) }
 gamma_flip_pdf <- function(param1, param2, x, x_shift, y_shift){ (((-x + x_shift)^(param1 - 1)*exp(-(-x + x_shift)/param2)) / ((param2^param1) * gamma(param1))) }  
 gamma_flipinv_pdf <- function(param1, param2, x, x_shift, y_shift){ -(((-x + x_shift)^(param1 - 1)*exp(-(-x + x_shift)/param2)) / ((param2^param1) * gamma(param1))) + abs(y_shift) }
+
+## BETA distribution
+# param1 --> alpha
+# param2 --> beta
+beta_pdf <- function(param1, param2, x, x_shift, y_shift){ ((x - 0)^(param1 - 1) * (100 - x)^(param2 - 1)) / (beta(param1, param2) * (100 - 0)^(param1 + param2 - 1)) }
+beta_inv_pdf <- function(param1, param2, x, x_shift, y_shift){ -(x^(param1 - 1) * (100 - x)^(param2 - 1)) / (beta(param1, param2) * (100)^(param1 + param2 - 1)) + abs(y_shift) }
+beta_flip_pdf <- function(param1, param2, x, x_shift, y_shift){ ((-x + x_shift)^(param1 - 1) * (100 - (-x + x_shift))^(param2 - 1)) / (beta(param1, param2) * (100 - 0)^(param1 + param2 - 1)) }
+beta_flipinv_pdf <- function(param1, param2, x, x_shift, y_shift){ -((-x + x_shift)^(param1 - 1) * (100 - (-x + x_shift))^(param2 - 1)) / (beta(param1, param2) * (100 - 0)^(param1 + param2 - 1)) + abs(y_shift) }
 
 
 ## -------------------------------------------
@@ -29,6 +37,10 @@ calc_normal_inv_deriv <- function(param1, param2, root){ -(-1/(param2 * sqrt(2 *
 gamma_inv_expression <- expression( -(root^(param1 - 1)*exp(-root/param2)) / ((param2^param1) * gamma(param1)) )
 # D(gamma_inv_expression, 'root')    ## returns function of first derivative, what we define in function below
 calc_gamma_inv_deriv <- function(param1, param2, root){ -((root^((param1 - 1) - 1) * (param1 - 1) * exp(-root/param2) - root^(param1 - 1) * (exp(-root/param2) * (1/param2)))/((param2^param1) * gamma(param1))) }
+
+beta_inv_expression <- expression( -(root^(param1 - 1) * (100 - root)^(param2 - 1)) / ((gamma(param1) * gamma(param2)) / gamma(param1 + param2) * (100)^(param1 + param2 - 1)) )
+# D(beta_inv_expression, 'root')    ## returns function of first derivative, what we define in function below
+calc_beta_inv_deriv <- function(param1, param2, root){ -((root^((param1 - 1) - 1) * (param1 - 1) * (100 - root)^(param2 - 1) - root^(param1 - 1) * ((100 - root)^((param2 - 1) - 1) * (param2 - 1)))/((gamma(param1) * gamma(param2))/gamma(param1 + param2) * (100)^(param1 + param2 - 1))) }
 
 
 ## -------------------------------------------
@@ -60,16 +72,30 @@ dist_list <- list('normal_pdf' = normal_pdf,
                   'gamma_inv_expression' = gamma_inv_expression, 
                   'calc_gamma_inv_deriv' = calc_gamma_inv_deriv, 
                   'gamma_flip_pdf' = gamma_flip_pdf,
-                  'gamma_flipinv_pdf' = gamma_flipinv_pdf)
+                  'gamma_flipinv_pdf' = gamma_flipinv_pdf,
 
-mangle_map <- data.frame('atk_dist_'  = c('normal', 'normal', 'normal', 'normal', 'gamma', 'gamma', 'gamma', 'gamma'), 
-                         'atk_state_' = c('standard', 'inverted', 'flipped', 'flipinv', 'standard', 'inverted', 'flipped', 'flipinv'),
+                  'beta_pdf' = beta_pdf, 
+                  'beta_inv_pdf' = beta_inv_pdf, 
+                  'beta_inv_expression' = beta_inv_expression, 
+                  'calc_beta_inv_deriv' = calc_beta_inv_deriv, 
+                  'beta_flip_pdf' = beta_flip_pdf,
+                  'beta_flipinv_pdf' = beta_flipinv_pdf)
+
+mangle_map <- data.frame('atk_dist_'  = c('normal', 'normal', 'normal', 'normal', 
+                                          'gamma', 'gamma', 'gamma', 'gamma',
+                                          'beta', 'beta', 'beta', 'beta'), 
+                         'atk_state_' = c('standard', 'inverted', 'flipped', 'flipinv', 
+                                          'standard', 'inverted', 'flipped', 'flipinv',
+                                          'standard', 'inverted', 'flipped', 'flipinv'),
                          'pdf'        = c('normal_pdf', 'normal_inv_pdf', 'normal_flip_pdf','normal_flipinv_pdf',
-                                          'gamma_pdf', 'gamma_inv_pdf', 'gamma_flip_pdf','gamma_flipinv_pdf'),
+                                          'gamma_pdf', 'gamma_inv_pdf', 'gamma_flip_pdf','gamma_flipinv_pdf',
+                                          'beta_pdf', 'beta_inv_pdf', 'beta_flip_pdf','beta_flipinv_pdf'),
                          'expression' =c('', 'normal_inv_expression', '', 'normal_inv_expression',
-                                         '', 'gamma_inv_expression', '', 'gamma_inv_expression'),
+                                         '', 'gamma_inv_expression', '', 'gamma_inv_expression',
+                                         '', 'beta_inv_expression', '', 'beta_inv_expression'),
                          'deriv'      =c('', 'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv',
-                                         '', 'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv')
+                                         '', 'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv',
+                                         '', 'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv')
 )
 
 ## -------------------------------------------
@@ -95,7 +121,7 @@ distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2
     
     expression <- dist_list[names(dist_list)==expression_name][[1]]
     calc_deriv <- dist_list[names(dist_list)==deriv_name][[1]]
-    root <- uniroot(calc_deriv, interval=c(xmin,xmax), param1=param1, param2=param2)$root
+    root <- uniroot(calc_deriv, interval=c(1,99), param1=param1, param2=param2)$root  ## use interval (1,99) as beta distribution has roots at 0 and 100, and uniroot will only return one root
     y_shift <- abs(eval(expression))
   }
   
@@ -111,7 +137,7 @@ distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2
     
     expression <- dist_list[names(dist_list)==expression_name][[1]]
     calc_deriv <- dist_list[names(dist_list)==deriv_name][[1]]
-    root <- uniroot(calc_deriv, interval=c(xmin,xmax), param1=param1, param2=param2)$root
+    root <- uniroot(calc_deriv, interval=c(1,99), param1=param1, param2=param2)$root
     y_shift <- abs(eval(expression))
   }
   
@@ -212,17 +238,17 @@ gpoly$x <- as.integer(gpoly$x)
 shinyServer(function(input, output, session) {
 
   ## initial conditions
-  master_frame <- data.frame('char' = c('Alex', 'Tex', 'Ivan', 'Rocko'),
+  master_frame <<- data.frame('char' = c('Alex', 'Tex', 'Ivan', 'Rocko'),
                              'team' = c('shiny', 'shiny', 'sas', 'sas'),
                              'xloc' = c(1, 2, 1, 5),
-                             'yloc' = c(1, 2, 2, 5),
-                             'cell' = c(1.1, 2.2, 1.2, 5.5),
+                             'yloc' = c(5, 2, 2, 5),
+                             'cell' = c(1.5, 2.2, 1.2, 5.5),
                              'move' = c(3, 2, 2, 1),
                              'atk_range' = c(1, 3, 2, 3),
                              'health' = c(200, 200, 200, 200),
-                             'atk_dist' = c('normal', 'normal', 'gamma', 'gamma'),
-                             'atk_param1' = c(45, 55, 2, 2),
-                             'atk_param2' = c(15, 25, 14, 11),
+                             'atk_dist' = c('normal', 'beta', 'gamma', 'gamma'),
+                             'atk_param1' = c(45, 6, 2, 2),
+                             'atk_param2' = c(15, 3, 14, 11),
                              'def' = c(44, 35, 50, 40),
                              'icon' = c('./sprites/alex_u_r.png',   ## icon format:  u/d/l/r stands for up/down/left/right.  First char is head orientation, second char is direction char is facing
                                         './sprites/tex_u_r.png',
@@ -238,11 +264,10 @@ shinyServer(function(input, output, session) {
   turn_order    <- rep(c('Alex', 'Ivan', 'Tex', 'Rocko'), 25)   
   turn_index    <- 1
   char_curr     <- turn_order[turn_index]
-  char_pos      <- subset(master_frame, char==char_curr)
+  char_pos      <<- subset(master_frame, char==char_curr)
   char_team     <- char_pos$team
   atks          <- master_frame[0,]
-  
-  
+
   ## --------------------------------------
   ## INITIAL BOARD GENERATION
   ## --------------------------------------
@@ -504,7 +529,7 @@ shinyServer(function(input, output, session) {
     ## check for possible attacks
     mobs <<- subset(master_frame, team != char_team)$cell
     atks <<- loc_map(atk_pos$atk_range, atk_pos$xloc, atk_pos$yloc, mobs, focus='targets', grid_size)
-    
+
     ## generic debuggers
     output$helper2 <- renderPrint({
       paste0('curr team: ', char_team)
