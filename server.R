@@ -90,7 +90,7 @@ mangle_map <- data.frame('atk_dist_'  = c('normal', 'normal', 'normal', 'normal'
                          'pdf'        = c('normal_pdf', 'normal_inv_pdf', 'normal_flip_pdf','normal_flipinv_pdf',
                                           'gamma_pdf', 'gamma_inv_pdf', 'gamma_flip_pdf','gamma_flipinv_pdf',
                                           'beta_pdf', 'beta_inv_pdf', 'beta_flip_pdf','beta_flipinv_pdf'),
-                         'expression' =c('', 'normal_inv_expression', '', 'normal_inv_expression',
+                         'expression' =c('', 'normal_inv_expression', '', 'normal_inv_expression',   ## for finding root of flipped + inverted, we can reuse the regular inverted functions ... simpler!  roots/y_shift will be identical, which is all we really care about
                                          '', 'gamma_inv_expression', '', 'gamma_inv_expression',
                                          '', 'beta_inv_expression', '', 'beta_inv_expression'),
                          'deriv'      =c('', 'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv',
@@ -121,7 +121,7 @@ distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2
     
     expression <- dist_list[names(dist_list)==expression_name][[1]]
     calc_deriv <- dist_list[names(dist_list)==deriv_name][[1]]
-    root <- uniroot(calc_deriv, interval=c(1,99), param1=param1, param2=param2)$root  ## use interval (1,99) as beta distribution has roots at 0 and 100, and uniroot will only return one root
+    root <- uniroot(calc_deriv, interval=c(.1, 99.9), param1=param1, param2=param2)$root  ## use interval (1,99) as beta distribution has roots at 0 and 100, and uniroot will only return one root
     y_shift <- abs(eval(expression))
   }
   
@@ -137,7 +137,7 @@ distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2
     
     expression <- dist_list[names(dist_list)==expression_name][[1]]
     calc_deriv <- dist_list[names(dist_list)==deriv_name][[1]]
-    root <- uniroot(calc_deriv, interval=c(1,99), param1=param1, param2=param2)$root
+    root <- uniroot(calc_deriv, interval=c(.1, 99.9), param1=param1, param2=param2)$root
     y_shift <- abs(eval(expression))
   }
   
@@ -175,7 +175,7 @@ orientation_map <- data.frame('head_start' = c('u', 'l', 'd', 'r', 'u', 'l', 'd'
 ## -------------------------------------------
 ## functionalize ggplot calls
 ## -------------------------------------------
-make_plot <- function(grid, frame, scope=NULL, moves=NULL, atks=NULL)
+draw_grid <- function(grid, frame, scope=NULL, moves=NULL, atks=NULL)
 {
   p <- ggplot() +
     geom_polygon(data=grid, mapping=aes(x=x, y=y, group=cell), color='black', fill=NA)
@@ -208,6 +208,42 @@ make_plot <- function(grid, frame, scope=NULL, moves=NULL, atks=NULL)
                                ymin=frame$yloc[i], 
                                ymax=frame$yloc[i] + 1)
   }
+  return(p)
+}
+
+plot_combat <- function(attacker, defender, show_atk)
+{
+  xmin <- 1
+  xmax <- 100
+  atk_dist <- attacker$atk_dist
+  param1 <- attacker$atk_param1
+  param2 <- attacker$atk_param2
+  def_val <- defender$def
+  
+  dist_out <- distribution_mangler(atk_dist, atk_state, xmin, xmax, param1, param2)
+  pdf <- dist_out[[1]]
+  x_shift <- dist_out[[2]]
+  y_shift <- dist_out[[3]]
+  
+  xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
+  ysmin <- rep(0, length(xs))
+  ysmax <- pdf(param1, param2, xs, x_shift, y_shift)
+  shade_df <- data.frame(xs, ysmin, ysmax)
+  dummy_df <- data.frame(x=c(xmin, xmax))
+  
+  p <- ggplot(dummy_df, aes(x=x)) +
+    stat_function(fun=pdf, geom='line', args=list(param1=param1, param2=param2, x_shift=x_shift, y_shift=y_shift)) +
+    geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
+    xlim(xmin, xmax)
+ 
+  if(show_atk == TRUE) 
+  {
+    # random roll - we could use built in rnorm function for normal pdf, but this is more fun!
+    atk_val <<- deviate_grabber(pdf, param1, param2, xmin, xmax, x_shift, y_shift)
+    
+    p <- p + geom_vline(xintercept=atk_val, color='green')
+  }
+  
   return(p)
 }
 
@@ -274,7 +310,7 @@ shinyServer(function(input, output, session) {
 
   ## generate initial grid
   output$playgrid <- renderPlot({
-    make_plot(gpoly, master_frame)
+    draw_grid(gpoly, master_frame)
   })
   
   ## generate initial callout for current chars turn
@@ -336,7 +372,7 @@ shinyServer(function(input, output, session) {
       
       ## UPDATE PLOT with possible moves
       output$playgrid <- renderPlot({
-        make_plot(gpoly, master_frame, scope='show_move', atks=atks)
+        draw_grid(gpoly, master_frame, scope='show_move', atks=atks)
       })
       
       char_moved <<- TRUE
@@ -354,56 +390,44 @@ shinyServer(function(input, output, session) {
         attacker <<- subset(master_frame, char==char_curr)
         defender <<- subset(master_frame, cell==xy_cell)
         
-        ## determine relative locations of chars ... is attacker facing defender and vice versa?
-        # if( (attacker$xloc < defender$xloc & attacker$face == 'r') |
-        #     (attacker$xloc > defender$xloc & attacker$face == 'l') |
-        #     (attacker$yloc < defender$yloc & attacker$face == 'u') |
-        #     (attacker$yloc > defender$yloc & attacker$face == 'd') )
-        # {
-        #   atk_state <<- 'standard'
-        # }else
-        # {
-        #   atk_state <<- 'inverted'
-        # }
-        # 
-        
         ## testing
-        if( attacker$face == 'r') { atk_state <<- 'standard' }
-        if( attacker$face == 'l') { atk_state <<- 'flipped' }
-        if( attacker$face == 'u') { atk_state <<- 'inverted' }
-        if( attacker$face == 'd') { atk_state <<- 'flipinv' }
+        # if( attacker$face == 'r') { atk_state <<- 'standard' }
+        # if( attacker$face == 'l') { atk_state <<- 'flipped' }
+        # if( attacker$face == 'u') { atk_state <<- 'inverted' }
+        # if( attacker$face == 'd') { atk_state <<- 'flipinv' }
+        
+        ## define ATK_STATE / DEF_STATE based on relative orientation of combatants
+        ## - lets start simple, tweak later
+        if(attacker$face != defender$face)
+        {
+          flip_flag <- FALSE
+        }else
+        {
+          flip_flag <- TRUE
+        }
+        
+        if(attacker$head != defender$head)
+        {
+          invert_flag <- TRUE
+        }else
+        {
+          invert_flag <- FALSE
+        }        
+        
+        if(!flip_flag & !invert_flag) { atk_state <<- 'standard' }
+        if(flip_flag & !invert_flag)  { atk_state <<- 'flipped' }
+        if(!flip_flag & invert_flag)  { atk_state <<- 'inverted' }
+        if(flip_flag & invert_flag)   { atk_state <<- 'flipinv' }
         
         toggleModal(session, 'atk_modal')
         
         output$whos_fighting <- renderPrint({
-          paste0(char_curr, ' is attacking ', defender$char, ' param1 = ', attacker$atk_param1, ' param2 = ', attacker$atk_param2, ' def = ', defender$def)  
+          paste0(char_curr, ' is attacking ', defender$char, ' param1 = ', attacker$atk_param1, ' param2 = ', attacker$atk_param2, ' def = ', defender$def, '  ', toupper(atk_state))  
         })
         
         ## initial attack distribution plot
         output$atk_plot <- renderPlot({
-          xmin <- 1
-          xmax <- 100
-          atk_dist <- attacker$atk_dist
-          param1 <- attacker$atk_param1
-          param2 <- attacker$atk_param2
-          def_val <<- defender$def
-          
-          dist_out <- distribution_mangler(atk_dist, atk_state, xmin, xmax, param1, param2)
-          pdf <- dist_out[[1]]
-          x_shift <- dist_out[[2]]
-          y_shift <- dist_out[[3]]
-          
-          xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
-          ysmin <- rep(0, length(xs))
-          ysmax <- pdf(param1, param2, xs, x_shift, y_shift)
-          shade_df <- data.frame(xs, ysmin, ysmax)
-          dummy_df <- data.frame(x=c(xmin, xmax))
-
-          p <- ggplot(dummy_df, aes(x=x)) +
-            stat_function(fun=pdf, geom='line', args=list(param1=param1, param2=param2, x_shift=x_shift, y_shift=y_shift)) +
-            geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
-            xlim(xmin, xmax)
-          
+          p <- plot_combat(attacker, defender, show_atk=FALSE)
           return(p)
         })
       }
@@ -415,35 +439,9 @@ shinyServer(function(input, output, session) {
     updateActionButton(session, 'atk_roll', label='Attack Complete')
     shinyjs::disable('atk_roll')
     
+    ## update plot with attack outcome
     output$atk_plot <- renderPlot({
-   
-      xmin <- 1
-      xmax <- 100
-      atk_dist <- attacker$atk_dist
-      param1 <- attacker$atk_param1
-      param2 <- attacker$atk_param2
-      def_val <<- defender$def
-      
-      dist_out <- distribution_mangler(atk_dist, atk_state, xmin, xmax, param1, param2)
-      pdf <- dist_out[[1]]
-      x_shift <- dist_out[[2]]
-      y_shift <- dist_out[[3]]
-      
-      xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
-      ysmin <- rep(0, length(xs))
-      ysmax <- pdf(param1, param2, xs, x_shift, y_shift)
-      shade_df <- data.frame(xs, ysmin, ysmax)
-      dummy_df <- data.frame(x=c(xmin, xmax))
-      
-      # random roll - we could use built in rnorm function for normal pdf, but this is more fun!
-      atk_val <<- deviate_grabber(pdf, param1, param2, xmin, xmax, x_shift, y_shift)
-
-      p <- ggplot(dummy_df, aes(x=x)) +
-        stat_function(fun=pdf, geom='line', args=list(param1=param1, param2=param2, x_shift=x_shift, y_shift=y_shift)) +
-        geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
-        geom_vline(xintercept=atk_val, color='green') +
-        xlim(xmin, xmax)  
-      
+       p <- plot_combat(attacker, defender, show_atk=TRUE)
       return(p)
     })
       
@@ -495,7 +493,7 @@ shinyServer(function(input, output, session) {
     
     ## remove red attack highlights
     output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame)
+      draw_grid(gpoly, master_frame)
     })
     
     char_attacked <<- TRUE 
@@ -512,7 +510,7 @@ shinyServer(function(input, output, session) {
     
     ## UPDATE PLOT
     output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame, scope='show_move', moves=moves)
+      draw_grid(gpoly, master_frame, scope='show_move', moves=moves)
     })
   })
     
@@ -543,7 +541,7 @@ shinyServer(function(input, output, session) {
     if(nrow(atks) > 0)
     {
       output$playgrid <- renderPlot({
-        make_plot(gpoly, master_frame, scope='show_atk', atks=atks)
+        draw_grid(gpoly, master_frame, scope='show_atk', atks=atks)
       })
     }else
     {
@@ -556,45 +554,45 @@ shinyServer(function(input, output, session) {
     
   
   ## ROTATING CHARACTERS
-  observeEvent(input$rotate_right_button, {
-                 
-    curr_head <- subset(master_frame, char==char_curr)$head
-    curr_face <- subset(master_frame, char==char_curr)$face
-    out_head <- subset(orientation_map, manipulation=='rotate_right' & head_start==curr_head & face_start==curr_face)$head_end
-    out_face <- subset(orientation_map, manipulation=='rotate_right' & head_start==curr_head & face_start==curr_face)$face_end
-    
-    ## update master frame
-    master_frame$head[which(master_frame$char == char_curr)] <<- out_head
-    master_frame$face[which(master_frame$char == char_curr)] <<- out_face
-    master_frame$icon[which(master_frame$char == char_curr)] <<- paste0('./sprites/', tolower(char_curr), '_', out_head, '_', out_face, '.png')
-    
-    ## update plot
-    output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame)
-    })
-    
-    ## disable further rotation
-  })
-  
-  observeEvent(input$rotate_left_button, {
-    
-    curr_head <- subset(master_frame, char==char_curr)$head
-    curr_face <- subset(master_frame, char==char_curr)$face
-    out_head <- subset(orientation_map, manipulation=='rotate_left' & head_start==curr_head & face_start==curr_face)$head_end
-    out_face <- subset(orientation_map, manipulation=='rotate_left' & head_start==curr_head & face_start==curr_face)$face_end
-    
-    ## update master frame
-    master_frame$head[which(master_frame$char == char_curr)] <<- out_head
-    master_frame$face[which(master_frame$char == char_curr)] <<- out_face
-    master_frame$icon[which(master_frame$char == char_curr)] <<- paste0('./sprites/', tolower(char_curr), '_', out_head, '_', out_face, '.png')
-    
-    ## update plot
-    output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame)
-    })
-    
-    ## disable further rotation
-  })
+  # observeEvent(input$rotate_right_button, {
+  #                
+  #   curr_head <- subset(master_frame, char==char_curr)$head
+  #   curr_face <- subset(master_frame, char==char_curr)$face
+  #   out_head <- subset(orientation_map, manipulation=='rotate_right' & head_start==curr_head & face_start==curr_face)$head_end
+  #   out_face <- subset(orientation_map, manipulation=='rotate_right' & head_start==curr_head & face_start==curr_face)$face_end
+  #   
+  #   ## update master frame
+  #   master_frame$head[which(master_frame$char == char_curr)] <<- out_head
+  #   master_frame$face[which(master_frame$char == char_curr)] <<- out_face
+  #   master_frame$icon[which(master_frame$char == char_curr)] <<- paste0('./sprites/', tolower(char_curr), '_', out_head, '_', out_face, '.png')
+  #   
+  #   ## update plot
+  #   output$playgrid <- renderPlot({
+  #     draw_grid(gpoly, master_frame)
+  #   })
+  #   
+  #   ## disable further rotation
+  # })
+  # 
+  # observeEvent(input$rotate_left_button, {
+  #   
+  #   curr_head <- subset(master_frame, char==char_curr)$head
+  #   curr_face <- subset(master_frame, char==char_curr)$face
+  #   out_head <- subset(orientation_map, manipulation=='rotate_left' & head_start==curr_head & face_start==curr_face)$head_end
+  #   out_face <- subset(orientation_map, manipulation=='rotate_left' & head_start==curr_head & face_start==curr_face)$face_end
+  #   
+  #   ## update master frame
+  #   master_frame$head[which(master_frame$char == char_curr)] <<- out_head
+  #   master_frame$face[which(master_frame$char == char_curr)] <<- out_face
+  #   master_frame$icon[which(master_frame$char == char_curr)] <<- paste0('./sprites/', tolower(char_curr), '_', out_head, '_', out_face, '.png')
+  #   
+  #   ## update plot
+  #   output$playgrid <- renderPlot({
+  #     draw_grid(gpoly, master_frame)
+  #   })
+  #   
+  #   ## disable further rotation
+  # })
   
   observeEvent(input$flip_vertical_button, {
     
@@ -610,7 +608,7 @@ shinyServer(function(input, output, session) {
     
     ## update plot
     output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame)
+      draw_grid(gpoly, master_frame)
     })
     
     ## disable further rotation
@@ -630,7 +628,7 @@ shinyServer(function(input, output, session) {
     
     ## update plot
     output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame)
+      draw_grid(gpoly, master_frame)
     })
     
     ## disable further rotation
@@ -650,7 +648,7 @@ shinyServer(function(input, output, session) {
     
     ## refresh plot - removes red attack tiles if present
     output$playgrid <- renderPlot({
-      make_plot(gpoly, master_frame)
+      draw_grid(gpoly, master_frame)
     })
     
     output$whos_turn <- renderText({
@@ -701,8 +699,4 @@ shinyServer(function(input, output, session) {
     enable('atk_button')
     enable('atk_roll')
   })   
-
-
-  
-  
 })

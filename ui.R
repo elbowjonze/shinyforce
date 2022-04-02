@@ -12,6 +12,7 @@ library(slickR)
 library(ggplot2)
 library(grid)
 library(png)
+library(LaplacesDemon)  ## for logit-normal distribution
 
 header <- dashboardHeader(title='SHINY FORCE')
 
@@ -77,20 +78,20 @@ body <- dashboardBody(
           verbatimTextOutput('no_atk_msg'),
           br(),
           br(),
-          actionBttn('rotate_right_button',
-                     label = 'Rotate',
-                     style = 'material-flat',
-                     icon = icon('redo')),
-          actionBttn('rotate_left_button',
-                     label = 'Rotate',
-                     style = 'material-flat',
-                     icon = icon('undo')),
+          # actionBttn('rotate_right_button',
+          #            label = 'Rotate',
+          #            style = 'material-flat',
+          #            icon = icon('redo')),
+          # actionBttn('rotate_left_button',
+          #            label = 'Rotate',
+          #            style = 'material-flat',
+          #            icon = icon('undo')),
           actionBttn('flip_vertical_button',
                      label = 'Flip',
                      style = 'material-flat',
                      icon = icon('exchange')),
           actionBttn('flip_horizontal_button',
-                     label = 'Flip',
+                     label = 'Invert',
                      style = 'material-flat',
                      icon = icon('retweet')),
           br(),
