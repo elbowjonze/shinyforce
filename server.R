@@ -149,26 +149,38 @@ distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2
 ## -------------------------------------------
 ## mapping for all possible characters manipulations
 ## -------------------------------------------
-orientation_map <- data.frame('head_start' = c('u', 'l', 'd', 'r', 'u', 'l', 'd', 'r',
-                                               'u', 'r', 'd', 'l', 'u', 'r', 'd', 'l',
-                                               'u', 'd', 'u', 'd', 'r', 'r', 'l', 'l',
-                                               'u', 'u', 'd', 'd', 'r', 'l', 'r', 'l') ,
-                              'face_start' = c('r', 'u', 'l', 'd', 'l', 'd', 'r', 'u',
-                                               'r', 'd', 'l', 'u', 'l', 'u', 'r', 'd',
-                                               'r', 'r', 'l', 'l', 'd', 'u', 'd', 'u',
-                                               'r', 'l', 'r', 'l', 'd', 'd', 'u', 'u'),
-                              'manipulation' = c('rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left',
-                                                 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right',
-                                                 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal',
-                                                 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical'),
-                              'head_end'   = c('l', 'd', 'r', 'u', 'l', 'd', 'r', 'u',
-                                               'r', 'd', 'l', 'u', 'r', 'd', 'l', 'u',
-                                               'd', 'u', 'd', 'u', 'r', 'r', 'l', 'l',
-                                               'u', 'u', 'd', 'd', 'l', 'r', 'l', 'r'),
-                              'face_end'   = c('u', 'l', 'd', 'r', 'd', 'r', 'u', 'l',
-                                               'd', 'l', 'u', 'r', 'u', 'r', 'd', 'l',                                                   
-                                               'r', 'r', 'l', 'l', 'u', 'd', 'u', 'd',
-                                               'l', 'r', 'l', 'r', 'd', 'd', 'u', 'u')
+# orientation_map <- data.frame('head_start' = c('u', 'l', 'd', 'r', 'u', 'l', 'd', 'r',
+#                                                'u', 'r', 'd', 'l', 'u', 'r', 'd', 'l',
+#                                                'u', 'd', 'u', 'd', 'r', 'r', 'l', 'l',
+#                                                'u', 'u', 'd', 'd', 'r', 'l', 'r', 'l') ,
+#                               'face_start' = c('r', 'u', 'l', 'd', 'l', 'd', 'r', 'u',
+#                                                'r', 'd', 'l', 'u', 'l', 'u', 'r', 'd',
+#                                                'r', 'r', 'l', 'l', 'd', 'u', 'd', 'u',
+#                                                'r', 'l', 'r', 'l', 'd', 'd', 'u', 'u'),
+#                               'manipulation' = c('rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left', 'rotate_left',
+#                                                  'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right', 'rotate_right',
+#                                                  'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal',
+#                                                  'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical'),
+#                               'head_end'   = c('l', 'd', 'r', 'u', 'l', 'd', 'r', 'u',
+#                                                'r', 'd', 'l', 'u', 'r', 'd', 'l', 'u',
+#                                                'd', 'u', 'd', 'u', 'r', 'r', 'l', 'l',
+#                                                'u', 'u', 'd', 'd', 'l', 'r', 'l', 'r'),
+#                               'face_end'   = c('u', 'l', 'd', 'r', 'd', 'r', 'u', 'l',
+#                                                'd', 'l', 'u', 'r', 'u', 'r', 'd', 'l',                                                   
+#                                                'r', 'r', 'l', 'l', 'u', 'd', 'u', 'd',
+#                                                'l', 'r', 'l', 'r', 'd', 'd', 'u', 'u')
+# )
+
+orientation_map <- data.frame('head_start' = c('u', 'd', 'u', 'd',
+                                               'u', 'u', 'd', 'd') ,
+                              'face_start' = c('r', 'r', 'l', 'l',
+                                               'r', 'l', 'r', 'l'),
+                              'manipulation' = c('flip_horizontal', 'flip_horizontal', 'flip_horizontal', 'flip_horizontal',
+                                                 'flip_vertical', 'flip_vertical', 'flip_vertical', 'flip_vertical'),
+                              'head_end'   = c('d', 'u', 'd', 'u',
+                                               'u', 'u', 'd', 'd'),
+                              'face_end'   = c('r', 'r', 'l', 'l',
+                                               'l', 'r', 'l', 'r')
 )
 
 
@@ -211,43 +223,100 @@ draw_grid <- function(grid, frame, scope=NULL, moves=NULL, atks=NULL)
   return(p)
 }
 
+
 plot_combat <- function(attacker, defender, show_atk)
 {
-  xmin <- 1
+  xmin <- 0
   xmax <- 100
-  atk_dist <- attacker$atk_dist
-  param1 <- attacker$atk_param1
-  param2 <- attacker$atk_param2
-  def_val <- defender$def
   
-  dist_out <- distribution_mangler(atk_dist, atk_state, xmin, xmax, param1, param2)
-  pdf <- dist_out[[1]]
-  x_shift <- dist_out[[2]]
-  y_shift <- dist_out[[3]]
+  ## attacker 
+  atk_dist   <- attacker$atk_dist
+  atk_param1 <- attacker$atk_param1
+  atk_param2 <- attacker$atk_param2
   
-  xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
-  ysmin <- rep(0, length(xs))
-  ysmax <- pdf(param1, param2, xs, x_shift, y_shift)
-  shade_df <- data.frame(xs, ysmin, ysmax)
+  atk_dist_out    <- distribution_mangler(atk_dist, atk_state, xmin, xmax, atk_param1, atk_param2)
+  atk_pdf     <- atk_dist_out[[1]]
+  atk_x_shift <- atk_dist_out[[2]]
+  atk_y_shift <- atk_dist_out[[3]]
+  
+  ## defender  
+  def_dist   <- defender$def_dist
+  def_param1 <- defender$def_param1
+  def_param2 <- defender$def_param2
+  
+  def_dist_out <- distribution_mangler(def_dist, atk_state, xmin, xmax, def_param1, def_param2)
+  def_pdf <- def_dist_out[[1]]
+  def_x_shift <- def_dist_out[[2]]
+  def_y_shift <- def_dist_out[[3]] 
+  
   dummy_df <- data.frame(x=c(xmin, xmax))
   
   p <- ggplot(dummy_df, aes(x=x)) +
-    stat_function(fun=pdf, geom='line', args=list(param1=param1, param2=param2, x_shift=x_shift, y_shift=y_shift)) +
-    geom_ribbon(aes(x=xs, ymin=ysmin, ymax=ysmax), data=shade_df, fill="#BB000033") +
-    xlim(xmin, xmax)
- 
+    stat_function(fun=atk_pdf, geom='line', args=list(param1=atk_param1, param2=atk_param2, x_shift=atk_x_shift, y_shift=atk_y_shift)) +
+    stat_function(fun=def_pdf, geom='line', args=list(param1=def_param1, param2=def_param2, x_shift=def_x_shift, y_shift=def_y_shift)) +
+    xlim(xmin, xmax) +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_text(size=15, face='bold'),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill='white')
+    ) +
+    ylab(NULL) +
+    xlab(NULL) 
+  
   if(show_atk == TRUE) 
   {
     # random roll - we could use built in rnorm function for normal pdf, but this is more fun!
-    atk_val <<- deviate_grabber(pdf, param1, param2, xmin, xmax, x_shift, y_shift)
+    atk_val <<- deviate_grabber(atk_pdf, atk_param1, atk_param2, xmin, xmax, atk_x_shift, atk_y_shift)
     
-    p <- p + geom_vline(xintercept=atk_val, color='green')
+    atk_xs <- seq(xmin, atk_val, length.out=100)  ## x-axis step size
+    atk_ysmin <- rep(0, length(atk_xs))
+    atk_ysmax <- atk_pdf(atk_param1, atk_param2, atk_xs, atk_x_shift, atk_y_shift)
+    atk_shade_df <- data.frame(atk_xs, atk_ysmin, atk_ysmax)
+    
+    full_atk_xs <- seq(atk_val, xmax, length.out=100)  ## x-axis step size
+    full_atk_ysmin <- rep(0, length(atk_xs))
+    full_atk_ysmax <- atk_pdf(atk_param1, atk_param2, full_atk_xs, atk_x_shift, atk_y_shift)
+    full_atk_shade_df <- data.frame(full_atk_xs, full_atk_ysmin, full_atk_ysmax)
+    
+    
+    def_val <<- deviate_grabber(def_pdf, def_param1, def_param2, xmin, xmax, def_x_shift, def_y_shift)
+    
+    def_xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
+    def_ysmin <- rep(0, length(def_xs))
+    def_ysmax <- def_pdf(def_param1, def_param2, def_xs, def_x_shift, def_y_shift)
+    def_shade_df <- data.frame(def_xs, def_ysmin, def_ysmax)
+    
+    full_def_xs <- seq(def_val, xmax, length.out=100)  ## x-axis step size
+    full_def_ysmin <- rep(0, length(def_xs))
+    full_def_ysmax <- def_pdf(def_param1, def_param2, full_def_xs, def_x_shift, def_y_shift)
+    full_def_shade_df <- data.frame(full_def_xs, full_def_ysmin, full_def_ysmax)
+    
+    p <- p +
+      geom_ribbon(aes(x=atk_xs, ymin=atk_ysmin, ymax=atk_ysmax), data=atk_shade_df, fill="#BB0000", alpha=.4) +
+      geom_ribbon(aes(x=full_atk_xs, ymin=full_atk_ysmin, ymax=full_atk_ysmax), data=full_atk_shade_df, fill="#D0D0D0", alpha=.4) +
+      geom_ribbon(aes(x=def_xs, ymin=def_ysmin, ymax=def_ysmax), data=def_shade_df, fill="#3690EA", alpha=.4) +
+      geom_ribbon(aes(x=full_def_xs, ymin=full_def_ysmin, ymax=full_def_ysmax), data=full_def_shade_df, fill="#D0D0D0", alpha=.4)
+  }else
+  {
+    atk_xs <- seq(xmin, xmax, length.out=100)  ## x-axis step size
+    atk_ysmin <- rep(0, length(atk_xs))
+    atk_ysmax <- atk_pdf(atk_param1, atk_param2, atk_xs, atk_x_shift, atk_y_shift)
+    atk_shade_df <- data.frame(atk_xs, atk_ysmin, atk_ysmax)
+    
+    def_xs <- seq(xmin, xmax, length.out=100)  ## x-axis step size
+    def_ysmin <- rep(0, length(def_xs))
+    def_ysmax <- def_pdf(def_param1, def_param2, def_xs, def_x_shift, def_y_shift)
+    def_shade_df <- data.frame(def_xs, def_ysmin, def_ysmax)
+    
+    p <- p +
+      geom_ribbon(aes(x=atk_xs, ymin=atk_ysmin, ymax=atk_ysmax), data=atk_shade_df, fill="#BB0000", alpha=.4) +
+      geom_ribbon(aes(x=def_xs, ymin=def_ysmin, ymax=def_ysmax), data=def_shade_df, fill="#3690EA", alpha=.4) 
   }
   
   return(p)
 }
-
-
 ## -------------------------------------------
 ## generate play grid - defined as ggplot polygons
 ## -------------------------------------------
@@ -285,7 +354,9 @@ shinyServer(function(input, output, session) {
                              'atk_dist' = c('normal', 'beta', 'gamma', 'gamma'),
                              'atk_param1' = c(45, 6, 2, 2),
                              'atk_param2' = c(15, 3, 14, 11),
-                             'def' = c(44, 35, 50, 40),
+                             'def_dist' = c('normal', 'normal', 'normal', 'normal'),
+                             'def_param1' = c(25, 35, 40, 45),
+                             'def_param2' = c(15, 15, 10, 15),
                              'icon' = c('./sprites/alex_u_r.png',   ## icon format:  u/d/l/r stands for up/down/left/right.  First char is head orientation, second char is direction char is facing
                                         './sprites/tex_u_r.png',
                                         './sprites/ivan_u_l.png',
