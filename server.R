@@ -491,6 +491,46 @@ shinyServer(function(input, output, session) {
   ## INITIAL BOARD GENERATION
   ## --------------------------------------
 
+  ## update current char detail panel
+  charsheet_display <- reactive({
+    
+    if(length(input$char_tabs) > 0)
+    {
+      line <- subset(master_frame, char==input$char_tabs)
+      image <- line$icon
+      health <- line$health
+      move <- line$move
+      atk_range <- line$atk_range
+      
+      out <- list(image, health, move, atk_range)
+      return(out)
+    }
+  })
+  
+  
+  output$current_char_icon <- renderImage({
+    #image <- subset(master_frame, char == input$char_tabs)$icon
+    image <- charsheet_display()[[1]]
+    list(src = image,
+         width = '50px',
+         height = '50px')
+  }, deleteFile = FALSE)
+  
+  output$current_char_health <- renderText({
+    paste0('Health: ', charsheet_display()[[2]])
+    #paste0('Health: ', subset(master_frame, char == input$char_tabs)$health)
+  })
+  
+  output$current_char_move <- renderText({
+    paste0('Movement Range: ', charsheet_display()[[3]])
+    #paste0('Movement Range: ', subset(master_frame, char == input$char_tabs)$move)
+  })
+  
+  output$current_char_atk <- renderText({
+    paste0('Attack Range: ', charsheet_display()[[4]])
+    # paste0('Attack Range: ', subset(master_frame, char == input$char_tabs)$atk_range)
+  })  
+  
   ## generate initial grid
   output$playgrid <- renderPlot({
     draw_grid(gpoly, master_frame)
@@ -501,25 +541,27 @@ shinyServer(function(input, output, session) {
     paste0(turn_order[turn_index], ", it's your turn")
   })
   
+  
+  
   ## generate initial current char detail panel
-  output$current_char_icon <- renderImage({
-    image <- subset(master_frame, char == turn_order[turn_index])$icon
-    list(src = image,
-         width = 50,
-         height = 50)
-  }, deleteFile = FALSE)
-  
-  output$current_char_health <- renderText({
-    paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
-  })
-  
-  output$current_char_move <- renderText({
-    paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
-  })
-  
-  output$current_char_atk <- renderText({
-    paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk_range)
-  })  
+  # output$current_char_icon <- renderImage({
+  #   image <- subset(master_frame, char == turn_order[turn_index])$icon
+  #   list(src = image,
+  #        width = 50,
+  #        height = 50)
+  # }, deleteFile = FALSE)
+  # 
+  # output$current_char_health <- renderText({
+  #   paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
+  # })
+  # 
+  # output$current_char_move <- renderText({
+  #   paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
+  # })
+  # 
+  # output$current_char_atk <- renderText({
+  #   paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk_range)
+  # })  
   
   ## intro slides
   output$slick_intro <- renderSlickR({
@@ -704,7 +746,7 @@ shinyServer(function(input, output, session) {
     atk_pos <- subset(master_frame, char==char_curr)
     
     output$helper1 <- renderPrint({
-      paste0('char_curr: ', char_curr)
+      as.character(input$char_tabs)
     }) 
     
     ## check for possible attacks
@@ -843,25 +885,31 @@ shinyServer(function(input, output, session) {
       return(NULL)
     })
     
-    ## update current char detail panel
-    output$current_char_icon <- renderImage({
-      image <- subset(master_frame, char == turn_order[turn_index])$icon
-      list(src = image,
-           width = '50px',
-           height = '50px')
-    }, deleteFile = FALSE)
+
+      
     
-    output$current_char_health <- renderText({
-      paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
-    })
-    
-    output$current_char_move <- renderText({
-      paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
-    })
-    
-    output$current_char_atk <- renderText({
-      paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk_range)
-    })  
+    # output$current_char_icon <- renderImage({
+    #   #image <- subset(master_frame, char == input$char_tabs)$icon
+    #   image <- charsheet_display()[[1]]
+    #   list(src = image,
+    #        width = '50px',
+    #        height = '50px')
+    # }, deleteFile = FALSE)
+    # 
+    # output$current_char_health <- renderText({
+    #   paste0('Health: ', charsheet_display()[[2]])
+    #   #paste0('Health: ', subset(master_frame, char == input$char_tabs)$health)
+    # })
+    # 
+    # output$current_char_move <- renderText({
+    #   paste0('Movement Range: ', charsheet_display()[[3]])
+    #   #paste0('Movement Range: ', subset(master_frame, char == input$char_tabs)$move)
+    # })
+    # 
+    # output$current_char_atk <- renderText({
+    #   paste0('Attack Range: ', charsheet_display()[[4]])
+    #   # paste0('Attack Range: ', subset(master_frame, char == input$char_tabs)$atk_range)
+    # })  
     
     ## wipe plots - does not work, neither did hide('atk_plot') ... probably need to add reactivity
     ## https://stackoverflow.com/questions/49495163/clear-button-in-shiny-app-is-not-clearing-plots
