@@ -81,41 +81,146 @@ dist_list <- list('normal_pdf' = normal_pdf,
                   'beta_flip_pdf' = beta_flip_pdf,
                   'beta_flipinv_pdf' = beta_flipinv_pdf)
 
-mangle_map <- data.frame('atk_dist_'  = c('normal', 'normal', 'normal', 'normal', 
-                                          'gamma', 'gamma', 'gamma', 'gamma',
-                                          'beta', 'beta', 'beta', 'beta'), 
-                         'atk_state_' = c('standard', 'inverted', 'flipped', 'flipinv', 
-                                          'standard', 'inverted', 'flipped', 'flipinv',
-                                          'standard', 'inverted', 'flipped', 'flipinv'),
-                         'pdf'        = c('normal_pdf', 'normal_inv_pdf', 'normal_flip_pdf','normal_flipinv_pdf',
-                                          'gamma_pdf', 'gamma_inv_pdf', 'gamma_flip_pdf','gamma_flipinv_pdf',
-                                          'beta_pdf', 'beta_inv_pdf', 'beta_flip_pdf','beta_flipinv_pdf'),
-                         'expression' =c('', 'normal_inv_expression', '', 'normal_inv_expression',   ## for finding root of flipped + inverted, we can reuse the regular inverted functions ... simpler!  roots/y_shift will be identical, which is all we really care about
-                                         '', 'gamma_inv_expression', '', 'gamma_inv_expression',
-                                         '', 'beta_inv_expression', '', 'beta_inv_expression'),
-                         'deriv'      =c('', 'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv',
-                                         '', 'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv',
-                                         '', 'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv')
-)
+# mangle_map <- data.frame('atk_dist_'  = c('normal', 'normal', 'normal', 'normal', 
+#                                           'gamma', 'gamma', 'gamma', 'gamma',
+#                                           'beta', 'beta', 'beta', 'beta'), 
+#                          'atk_state_' = c('standard', 'inverted', 'flipped', 'flipinv', 
+#                                           'standard', 'inverted', 'flipped', 'flipinv',
+#                                           'standard', 'inverted', 'flipped', 'flipinv'),
+#                          'pdf'        = c('normal_pdf', 'normal_inv_pdf', 'normal_flip_pdf','normal_flipinv_pdf',
+#                                           'gamma_pdf', 'gamma_inv_pdf', 'gamma_flip_pdf','gamma_flipinv_pdf',
+#                                           'beta_pdf', 'beta_inv_pdf', 'beta_flip_pdf','beta_flipinv_pdf'),
+#                          'expression' =c('', 'normal_inv_expression', '', 'normal_inv_expression',   ## for finding root of flipped + inverted, we can reuse the regular inverted functions ... simpler!  roots/y_shift will be identical, which is all we really care about
+#                                          '', 'gamma_inv_expression', '', 'gamma_inv_expression',
+#                                          '', 'beta_inv_expression', '', 'beta_inv_expression'),
+#                          'deriv'      =c('', 'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv',
+#                                          '', 'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv',
+#                                          '', 'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv')
+# )
+
+mangle_map <- data.frame('dist_' = c('normal', 'normal', 'normal', 'normal',
+                                     'normal', 'normal', 'normal', 'normal',
+                                     'normal', 'normal', 'normal', 'normal',
+                                     'normal', 'normal', 'normal', 'normal',
+                                     'gamma', 'gamma', 'gamma', 'gamma',
+                                     'gamma', 'gamma', 'gamma', 'gamma',
+                                     'gamma', 'gamma', 'gamma', 'gamma',
+                                     'gamma', 'gamma', 'gamma', 'gamma',
+                                     'beta', 'beta', 'beta', 'beta',
+                                     'beta', 'beta', 'beta', 'beta',
+                                     'beta', 'beta', 'beta', 'beta',
+                                     'beta', 'beta', 'beta', 'beta'), 
+                         'og_state_' = c('standard', 'standard', 'standard', 'standard', 
+                                         'inverted', 'inverted', 'inverted', 'inverted', 
+                                         'flipped', 'flipped', 'flipped', 'flipped', 
+                                         'flipinv', 'flipinv', 'flipinv', 'flipinv', 
+                                         'standard', 'standard', 'standard', 'standard', 
+                                         'inverted', 'inverted', 'inverted', 'inverted', 
+                                         'flipped', 'flipped', 'flipped', 'flipped', 
+                                         'flipinv', 'flipinv', 'flipinv', 'flipinv', 
+                                         'standard', 'standard', 'standard', 'standard', 
+                                         'inverted', 'inverted', 'inverted', 'inverted', 
+                                         'flipped', 'flipped', 'flipped', 'flipped', 
+                                         'flipinv', 'flipinv', 'flipinv', 'flipinv'),
+                         'state_' = c('standard', 'inverted', 'flipped', 'flipinv', 
+                                      'standard', 'inverted', 'flipped', 'flipinv',
+                                      'standard', 'inverted', 'flipped', 'flipinv',
+                                      'standard', 'inverted', 'flipped', 'flipinv', 
+                                      'standard', 'inverted', 'flipped', 'flipinv',
+                                      'standard', 'inverted', 'flipped', 'flipinv',
+                                      'standard', 'inverted', 'flipped', 'flipinv', 
+                                      'standard', 'inverted', 'flipped', 'flipinv',
+                                      'standard', 'inverted', 'flipped', 'flipinv', 
+                                      'standard', 'inverted', 'flipped', 'flipinv',
+                                      'standard', 'inverted', 'flipped', 'flipinv',
+                                      'standard', 'inverted', 'flipped', 'flipinv'),
+                         'final_state' = c('standard', 'inverted', 'flipped', 'flipinv',
+                                           'inverted', 'standard', 'flipinv', 'flipped',
+                                           'flipped', 'flipinv', 'standard', 'inverted',
+                                           'flipinv', 'flipped', 'inverted', 'standard',
+                                           'standard', 'inverted', 'flipped', 'flipinv',
+                                           'inverted', 'standard', 'flipinv', 'flipped',
+                                           'flipped', 'flipinv', 'standard', 'inverted',
+                                           'flipinv', 'flipped', 'inverted', 'standard',
+                                           'standard', 'inverted', 'flipped', 'flipinv',
+                                           'inverted', 'standard', 'flipinv', 'flipped',
+                                           'flipped', 'flipinv', 'standard', 'inverted',
+                                           'flipinv', 'flipped', 'inverted', 'standard'),
+                         'pdf'        = c('normal_pdf', 'normal_inv_pdf', 'normal_flip_pdf', 'normal_flipinv_pdf',
+                                          'normal_inv_pdf', 'normal_pdf', 'normal_flipinv_pdf', 'normal_flip_pdf',
+                                          'normal_flip_pdf', 'normal_flipinv_pdf', 'normal_pdf', 'normal_inv_pdf',
+                                          'normal_flipinv_pdf', 'normal_flip_pdf', 'normal_inv_pdf', 'normal_pdf',
+                                          'gamma_pdf', 'gamma_inv_pdf', 'gamma_flip_pdf', 'gamma_flipinv_pdf',
+                                          'gamma_inv_pdf', 'gamma_pdf', 'gamma_flipinv_pdf', 'gamma_flip_pdf',
+                                          'gamma_flip_pdf', 'gamma_flipinv_pdf', 'gamma_pdf', 'gamma_inv_pdf',
+                                          'gamma_flipinv_pdf', 'gamma_flip_pdf', 'gamma_inv_pdf', 'gamma_pdf',
+                                          'beta_pdf', 'beta_inv_pdf', 'beta_flip_pdf', 'beta_flipinv_pdf',
+                                          'beta_inv_pdf', 'beta_pdf', 'beta_flipinv_pdf', 'beta_flip_pdf',
+                                          'beta_flip_pdf', 'beta_flipinv_pdf', 'beta_pdf', 'beta_inv_pdf',
+                                          'beta_flipinv_pdf', 'beta_flip_pdf', 'beta_inv_pdf', 'beta_pdf'),
+                         'expression' = c('', 'normal_inv_expression', '', 'normal_inv_expression',   ## for finding root of flipped + inverted, we can reuse the regular inverted functions ... simpler!  roots/y_shift will be identical, which is all we really care about
+                                          'normal_inv_expression', '', 'normal_inv_expression', '',
+                                          '', 'normal_inv_expression', '', 'normal_inv_expression',
+                                          'normal_inv_expression', '', 'normal_inv_expression', '',
+                                          '', 'gamma_inv_expression', '', 'gamma_inv_expression',
+                                          'gamma_inv_expression', '', 'gamma_inv_expression', '',
+                                          '', 'gamma_inv_expression', '', 'gamma_inv_expression',
+                                          'gamma_inv_expression', '', 'gamma_inv_expression', '',
+                                          '', 'beta_inv_expression', '', 'beta_inv_expression',
+                                          'beta_inv_expression', '', 'beta_inv_expression', '',
+                                          '', 'beta_inv_expression', '', 'beta_inv_expression',
+                                          'beta_inv_expression', '', 'beta_inv_expression', ''),
+                         'deriv'      = c('', 'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv',   ## for finding root of flipped + inverted, we can reuse the regular inverted functions ... simpler!  roots/y_shift will be identical, which is all we really care about
+                                          'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv', '',
+                                          '', 'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv',
+                                          'calc_normal_inv_deriv', '', 'calc_normal_inv_deriv', '',
+                                          '', 'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv',
+                                          'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv', '',
+                                          '', 'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv',
+                                          'calc_gamma_inv_deriv', '', 'calc_gamma_inv_deriv', '',
+                                          '', 'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv',
+                                          'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv', '',
+                                          '', 'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv',
+                                          'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv', '')
+)  
+
 
 ## -------------------------------------------
 ## this function is fed the current attack info and returns the correct pdf and amount to shift the distr. in the x/y directions
 ## -------------------------------------------
-distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2)
+distribution_mangler <- function(dist, og_state, state, xmin, xmax, param1, param2)
 {
-  pdf_name <- subset(mangle_map, atk_dist_==atk_dist & atk_state_==atk_state)$pdf
-  expression_name <- subset(mangle_map, atk_dist_==atk_dist & atk_state_==atk_state)$expression
-  deriv_name <- subset(mangle_map, atk_dist_==atk_dist & atk_state_==atk_state)$deriv
+  # message(master_frame)
+  # 
+  # message('--------------------------')
+  # message('INPUTS')
+  # message(paste0('attacker = ', attacker$char))
+  # message(paste0('defender = ', defender$char))
+  # message(dist)
+  # message(orient)
+  # message(state)
+  
+  mangle_case <- subset(mangle_map, dist_==dist & og_state_==og_state & state_==state) 
+  pdf_name <- mangle_case$pdf
+  expression_name <- mangle_case$expression
+  deriv_name <- mangle_case$deriv
+  final_state <- mangle_case$final_state
+  
+  # message('OUTPUTS')
+  # message(pdf_name)
+  # message(expression_name)
+  # message(deriv_name)
+  # message('--------------------------')
   
   pdf <- dist_list[names(dist_list)==pdf_name][[1]]
   
-  if(atk_state == 'standard') 
+  if(final_state == 'standard') 
   {
     x_shift <- 0
     y_shift <- 0
   }
   
-  if(atk_state == 'inverted') 
+  if(final_state == 'inverted') 
   {
     x_shift <- 0
     
@@ -125,19 +230,19 @@ distribution_mangler <- function(atk_dist, atk_state, xmin, xmax, param1, param2
     y_shift <- abs(eval(expression))
   }
   
-  if(atk_state == 'flipped')
+  if(final_state == 'flipped')
   {
     x_shift <- xmax
     y_shift <- 0
   }
   
-  if(atk_state == 'flipinv') 
+  if(final_state == 'flipinv') 
   {
     x_shift <- xmax
     
     expression <- dist_list[names(dist_list)==expression_name][[1]]
     calc_deriv <- dist_list[names(dist_list)==deriv_name][[1]]
-    root <- uniroot(calc_deriv, interval=c(.1, 99.9), param1=param1, param2=param2)$root
+    root <- uniroot(calc_deriv, interval=c(1, 99), param1=param1, param2=param2)$root
     y_shift <- abs(eval(expression))
   }
   
@@ -182,6 +287,7 @@ orientation_map <- data.frame('head_start' = c('u', 'd', 'u', 'd',
                               'face_end'   = c('r', 'r', 'l', 'l',
                                                'l', 'r', 'l', 'r')
 )
+
 
 
 ## -------------------------------------------
@@ -231,26 +337,28 @@ plot_combat <- function(attacker, defender, show_atk)
   
   ## attacker 
   atk_dist   <- attacker$atk_dist
+  atk_og_state <- attacker$atk_og_state
   atk_param1 <- attacker$atk_param1
   atk_param2 <- attacker$atk_param2
   
-  atk_dist_out    <- distribution_mangler(atk_dist, atk_state, xmin, xmax, atk_param1, atk_param2)
+  atk_dist_out    <- distribution_mangler(atk_dist, atk_og_state, atk_state, xmin, xmax, atk_param1, atk_param2)
   atk_pdf     <- atk_dist_out[[1]]
   atk_x_shift <- atk_dist_out[[2]]
   atk_y_shift <- atk_dist_out[[3]]
   
   ## defender  
   def_dist   <- defender$def_dist
+  def_og_state <- defender$def_og_state
   def_param1 <- defender$def_param1
   def_param2 <- defender$def_param2
   
-  def_dist_out <- distribution_mangler(def_dist, atk_state, xmin, xmax, def_param1, def_param2)
+  def_dist_out <- distribution_mangler(def_dist, def_og_state, atk_state, xmin, xmax, def_param1, def_param2)
   def_pdf <- def_dist_out[[1]]
   def_x_shift <- def_dist_out[[2]]
   def_y_shift <- def_dist_out[[3]] 
   
   dummy_df <- data.frame(x=c(xmin, xmax))
-  
+
   p <- ggplot(dummy_df, aes(x=x)) +
     stat_function(fun=atk_pdf, geom='line', args=list(param1=atk_param1, param2=atk_param2, x_shift=atk_x_shift, y_shift=atk_y_shift)) +
     stat_function(fun=def_pdf, geom='line', args=list(param1=def_param1, param2=def_param2, x_shift=def_x_shift, y_shift=def_y_shift)) +
@@ -263,7 +371,7 @@ plot_combat <- function(attacker, defender, show_atk)
           panel.background = element_rect(fill='white')
     ) +
     ylab(NULL) +
-    xlab(NULL) 
+    xlab(NULL)
   
   if(show_atk == TRUE) 
   {
@@ -317,6 +425,8 @@ plot_combat <- function(attacker, defender, show_atk)
   
   return(p)
 }
+
+
 ## -------------------------------------------
 ## generate play grid - defined as ggplot polygons
 ## -------------------------------------------
@@ -352,9 +462,11 @@ shinyServer(function(input, output, session) {
                              'atk_range' = c(1, 3, 2, 3),
                              'health' = c(200, 200, 200, 200),
                              'atk_dist' = c('normal', 'beta', 'gamma', 'gamma'),
+                             'atk_og_state' = c(sample(c('standard', 'inverted', 'flipped', 'flipinv'), 4, replace=TRUE)), ## randomize distribution orientation
                              'atk_param1' = c(45, 6, 2, 2),
                              'atk_param2' = c(15, 3, 14, 11),
                              'def_dist' = c('normal', 'normal', 'normal', 'normal'),
+                             'def_og_state' = c(sample(c('standard', 'inverted', 'flipped', 'flipinv'), 4, replace=TRUE)), ## randomize distribution orientation
                              'def_param1' = c(25, 35, 40, 45),
                              'def_param2' = c(15, 15, 10, 15),
                              'icon' = c('./sprites/alex_u_r.png',   ## icon format:  u/d/l/r stands for up/down/left/right.  First char is head orientation, second char is direction char is facing
@@ -379,6 +491,46 @@ shinyServer(function(input, output, session) {
   ## INITIAL BOARD GENERATION
   ## --------------------------------------
 
+  ## update current char detail panel
+  charsheet_display <- reactive({
+    
+    if(length(input$char_tabs) > 0)
+    {
+      line <- subset(master_frame, char==input$char_tabs)
+      image <- line$icon
+      health <- line$health
+      move <- line$move
+      atk_range <- line$atk_range
+      
+      out <- list(image, health, move, atk_range)
+      return(out)
+    }
+  })
+  
+  
+  output$current_char_icon <- renderImage({
+    #image <- subset(master_frame, char == input$char_tabs)$icon
+    image <- charsheet_display()[[1]]
+    list(src = image,
+         width = '50px',
+         height = '50px')
+  }, deleteFile = FALSE)
+  
+  output$current_char_health <- renderText({
+    paste0('Health: ', charsheet_display()[[2]])
+    #paste0('Health: ', subset(master_frame, char == input$char_tabs)$health)
+  })
+  
+  output$current_char_move <- renderText({
+    paste0('Movement Range: ', charsheet_display()[[3]])
+    #paste0('Movement Range: ', subset(master_frame, char == input$char_tabs)$move)
+  })
+  
+  output$current_char_atk <- renderText({
+    paste0('Attack Range: ', charsheet_display()[[4]])
+    # paste0('Attack Range: ', subset(master_frame, char == input$char_tabs)$atk_range)
+  })  
+  
   ## generate initial grid
   output$playgrid <- renderPlot({
     draw_grid(gpoly, master_frame)
@@ -389,25 +541,27 @@ shinyServer(function(input, output, session) {
     paste0(turn_order[turn_index], ", it's your turn")
   })
   
+  
+  
   ## generate initial current char detail panel
-  output$current_char_icon <- renderImage({
-    image <- subset(master_frame, char == turn_order[turn_index])$icon
-    list(src = image,
-         width = 50,
-         height = 50)
-  }, deleteFile = FALSE)
-  
-  output$current_char_health <- renderText({
-    paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
-  })
-  
-  output$current_char_move <- renderText({
-    paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
-  })
-  
-  output$current_char_atk <- renderText({
-    paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk_range)
-  })  
+  # output$current_char_icon <- renderImage({
+  #   image <- subset(master_frame, char == turn_order[turn_index])$icon
+  #   list(src = image,
+  #        width = 50,
+  #        height = 50)
+  # }, deleteFile = FALSE)
+  # 
+  # output$current_char_health <- renderText({
+  #   paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
+  # })
+  # 
+  # output$current_char_move <- renderText({
+  #   paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
+  # })
+  # 
+  # output$current_char_atk <- renderText({
+  #   paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk_range)
+  # })  
   
   ## intro slides
   output$slick_intro <- renderSlickR({
@@ -592,7 +746,7 @@ shinyServer(function(input, output, session) {
     atk_pos <- subset(master_frame, char==char_curr)
     
     output$helper1 <- renderPrint({
-      paste0('char_curr: ', char_curr)
+      as.character(input$char_tabs)
     }) 
     
     ## check for possible attacks
@@ -731,25 +885,31 @@ shinyServer(function(input, output, session) {
       return(NULL)
     })
     
-    ## update current char detail panel
-    output$current_char_icon <- renderImage({
-      image <- subset(master_frame, char == turn_order[turn_index])$icon
-      list(src = image,
-           width = '50px',
-           height = '50px')
-    }, deleteFile = FALSE)
+
+      
     
-    output$current_char_health <- renderText({
-      paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
-    })
-    
-    output$current_char_move <- renderText({
-      paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
-    })
-    
-    output$current_char_atk <- renderText({
-      paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk_range)
-    })  
+    # output$current_char_icon <- renderImage({
+    #   #image <- subset(master_frame, char == input$char_tabs)$icon
+    #   image <- charsheet_display()[[1]]
+    #   list(src = image,
+    #        width = '50px',
+    #        height = '50px')
+    # }, deleteFile = FALSE)
+    # 
+    # output$current_char_health <- renderText({
+    #   paste0('Health: ', charsheet_display()[[2]])
+    #   #paste0('Health: ', subset(master_frame, char == input$char_tabs)$health)
+    # })
+    # 
+    # output$current_char_move <- renderText({
+    #   paste0('Movement Range: ', charsheet_display()[[3]])
+    #   #paste0('Movement Range: ', subset(master_frame, char == input$char_tabs)$move)
+    # })
+    # 
+    # output$current_char_atk <- renderText({
+    #   paste0('Attack Range: ', charsheet_display()[[4]])
+    #   # paste0('Attack Range: ', subset(master_frame, char == input$char_tabs)$atk_range)
+    # })  
     
     ## wipe plots - does not work, neither did hide('atk_plot') ... probably need to add reactivity
     ## https://stackoverflow.com/questions/49495163/clear-button-in-shiny-app-is-not-clearing-plots
