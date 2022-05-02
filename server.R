@@ -98,6 +98,7 @@ dist_list <- list('normal_pdf' = normal_pdf,
 #                                          '', 'calc_beta_inv_deriv', '', 'calc_beta_inv_deriv')
 # )
 
+## mapping of distributions and their transformations
 mangle_map <- data.frame('dist_' = c('normal', 'normal', 'normal', 'normal',
                                      'normal', 'normal', 'normal', 'normal',
                                      'normal', 'normal', 'normal', 'normal',
@@ -190,27 +191,12 @@ mangle_map <- data.frame('dist_' = c('normal', 'normal', 'normal', 'normal',
 ## -------------------------------------------
 distribution_mangler <- function(dist, og_state, state, xmin, xmax, param1, param2)
 {
-  # message(master_frame)
-  # 
-  # message('--------------------------')
-  # message('INPUTS')
-  # message(paste0('attacker = ', attacker$char))
-  # message(paste0('defender = ', defender$char))
-  # message(dist)
-  # message(orient)
-  # message(state)
   
   mangle_case <- subset(mangle_map, dist_==dist & og_state_==og_state & state_==state) 
   pdf_name <- mangle_case$pdf
   expression_name <- mangle_case$expression
   deriv_name <- mangle_case$deriv
   final_state <- mangle_case$final_state
-  
-  # message('OUTPUTS')
-  # message(pdf_name)
-  # message(expression_name)
-  # message(deriv_name)
-  # message('--------------------------')
   
   pdf <- dist_list[names(dist_list)==pdf_name][[1]]
   
@@ -289,6 +275,38 @@ orientation_map <- data.frame('head_start' = c('u', 'd', 'u', 'd',
 )
 
 
+## define ATK_STATE / DEF_STATE based on relative orientation of combatants
+get_state <- function(char_curr, xy_cell)
+{
+  attacker <- subset(master_frame, char==char_curr)
+  defender <- subset(master_frame, cell==xy_cell)
+  
+  ## - lets start simple, tweak later
+  if(attacker$face != defender$face)
+  {
+    flip_flag <- FALSE
+  }else
+  {
+    flip_flag <- TRUE
+  }
+  
+  if(attacker$head != defender$head)
+  {
+    invert_flag <- TRUE
+  }else
+  {
+    invert_flag <- FALSE
+  }        
+  
+  if(!flip_flag & !invert_flag) { atk_state <<- 'standard' }
+  if(flip_flag & !invert_flag)  { atk_state <<- 'flipped' }
+  if(!flip_flag & invert_flag)  { atk_state <<- 'inverted' }
+  if(flip_flag & invert_flag)   { atk_state <<- 'flipinv' }
+  
+  out <- list(attacker, defender, atk_state)
+  return(out)
+}
+
 
 ## -------------------------------------------
 ## functionalize ggplot calls
@@ -296,7 +314,15 @@ orientation_map <- data.frame('head_start' = c('u', 'd', 'u', 'd',
 draw_grid <- function(grid, frame, scope=NULL, moves=NULL, atks=NULL)
 {
   p <- ggplot() +
-    geom_polygon(data=grid, mapping=aes(x=x, y=y, group=cell), color='black', fill=NA)
+    geom_polygon(data=grid, mapping=aes(x=x, y=y, group=cell), color='black', fill=NA) +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.title.y = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.background = element_rect(fill='white')
+          )
   
   if(!is.null(scope))
   {
@@ -334,6 +360,8 @@ plot_combat <- function(attacker, defender, show_atk)
 {
   xmin <- 0
   xmax <- 100
+  atk_val <- 0
+  def_val <- 0
   
   ## attacker 
   atk_dist   <- attacker$atk_dist
@@ -376,7 +404,7 @@ plot_combat <- function(attacker, defender, show_atk)
   if(show_atk == TRUE) 
   {
     # random roll - we could use built in rnorm function for normal pdf, but this is more fun!
-    atk_val <<- deviate_grabber(atk_pdf, atk_param1, atk_param2, xmin, xmax, atk_x_shift, atk_y_shift)
+    atk_val <- deviate_grabber(atk_pdf, atk_param1, atk_param2, xmin, xmax, atk_x_shift, atk_y_shift)
     
     atk_xs <- seq(xmin, atk_val, length.out=100)  ## x-axis step size
     atk_ysmin <- rep(0, length(atk_xs))
@@ -389,7 +417,7 @@ plot_combat <- function(attacker, defender, show_atk)
     full_atk_shade_df <- data.frame(full_atk_xs, full_atk_ysmin, full_atk_ysmax)
     
     
-    def_val <<- deviate_grabber(def_pdf, def_param1, def_param2, xmin, xmax, def_x_shift, def_y_shift)
+    def_val <- deviate_grabber(def_pdf, def_param1, def_param2, xmin, xmax, def_x_shift, def_y_shift)
     
     def_xs <- seq(xmin, def_val, length.out=100)  ## x-axis step size
     def_ysmin <- rep(0, length(def_xs))
@@ -423,7 +451,8 @@ plot_combat <- function(attacker, defender, show_atk)
       geom_ribbon(aes(x=def_xs, ymin=def_ysmin, ymax=def_ysmax), data=def_shade_df, fill="#3690EA", alpha=.4) 
   }
   
-  return(p)
+  out <- list(p, atk_val, def_val)
+  return(out)
 }
 
 
@@ -452,6 +481,40 @@ gpoly$x <- as.integer(gpoly$x)
 
 shinyServer(function(input, output, session) {
 
+  ## UI log
+  narration <- data.frame('text' = character(),
+                          'team_col' = integer())
+  
+  update_narrator <- function(text, team)
+  {  
+    output$narrator <- renderDT({
+      narration <<- rbind(narration, c(text, team))
+      names(narration) <- c('text', 'team')
+      datatable(narration, 
+                extensions = c('Scroller'),
+                rownames = FALSE,
+                class = 'compact',  ## squeeze rows together a bit
+                options = list(
+                  dom = 't',        ## only show the table, no filters
+                  scrollY = '120px',
+                  scrollX = 'TRUE',
+                  scroller = TRUE,  ## only renders visbile rows, helps with large tables
+                  paging = TRUE,    ## must be TRUE to enable scroller option above, even though no pagination appears in UI
+                  initComplete  = JS(paste0('function() { this.api().table().row(', nrow(narration) -1 , ').node().scrollIntoView(); }')),   ## auto scrolls battle log to bottom                  
+                  columnDefs = list(list(className = 'dt-left', targets = "_all"),   ## left-justify columns
+                                    list(visible = FALSE, targets=c(1))              ## remove "team" column from table
+                  )
+                )
+      ) %>%
+      formatStyle('team',
+                  target = 'row',
+                  backgroundColor = styleEqual(c('shiny', 'sas'), c('white', '#fee0d2'))
+      )
+    })
+  }
+    
+    
+    
   ## initial conditions
   master_frame <<- data.frame('char' = c('Alex', 'Tex', 'Ivan', 'Rocko'),
                              'team' = c('shiny', 'shiny', 'sas', 'sas'),
@@ -508,27 +571,23 @@ shinyServer(function(input, output, session) {
   })
   
   
-  output$current_char_icon <- renderImage({
-    #image <- subset(master_frame, char == input$char_tabs)$icon
+  output$char_icon <- renderImage({
     image <- charsheet_display()[[1]]
     list(src = image,
          width = '50px',
          height = '50px')
   }, deleteFile = FALSE)
   
-  output$current_char_health <- renderText({
+  output$char_health <- renderText({
     paste0('Health: ', charsheet_display()[[2]])
-    #paste0('Health: ', subset(master_frame, char == input$char_tabs)$health)
   })
   
-  output$current_char_move <- renderText({
+  output$char_move <- renderText({
     paste0('Movement Range: ', charsheet_display()[[3]])
-    #paste0('Movement Range: ', subset(master_frame, char == input$char_tabs)$move)
   })
   
-  output$current_char_atk <- renderText({
+  output$char_atk <- renderText({
     paste0('Attack Range: ', charsheet_display()[[4]])
-    # paste0('Attack Range: ', subset(master_frame, char == input$char_tabs)$atk_range)
   })  
   
   ## generate initial grid
@@ -537,31 +596,7 @@ shinyServer(function(input, output, session) {
   })
   
   ## generate initial callout for current chars turn
-  output$whos_turn <- renderText({
-    paste0(turn_order[turn_index], ", it's your turn")
-  })
-  
-  
-  
-  ## generate initial current char detail panel
-  # output$current_char_icon <- renderImage({
-  #   image <- subset(master_frame, char == turn_order[turn_index])$icon
-  #   list(src = image,
-  #        width = 50,
-  #        height = 50)
-  # }, deleteFile = FALSE)
-  # 
-  # output$current_char_health <- renderText({
-  #   paste0('Health: ', subset(master_frame, char == turn_order[turn_index])$health)
-  # })
-  # 
-  # output$current_char_move <- renderText({
-  #   paste0('Movement Range: ', subset(master_frame, char == turn_order[turn_index])$move)
-  # })
-  # 
-  # output$current_char_atk <- renderText({
-  #   paste0('Attack Range: ', subset(master_frame, char == turn_order[turn_index])$atk_range)
-  # })  
+  update_narrator(paste0(turn_order[turn_index], ", it's your turn"), char_team)
   
   ## intro slides
   output$slick_intro <- renderSlickR({
@@ -603,6 +638,7 @@ shinyServer(function(input, output, session) {
       char_moved <<- TRUE
       updateActionButton(session, 'move_button', label='Move Complete')
       shinyjs::disable('move_button')
+      update_narrator(paste0(turn_order[turn_index], " moved to cell ", subset(master_frame, char==char_curr)$cell), char_team)
     }
     
     ## ATTACKING!!
@@ -612,37 +648,9 @@ shinyServer(function(input, output, session) {
       ## if valid target is selected
       if(nrow(subset(gpoly, mobs %in% xy_cell)))
       {
-        attacker <<- subset(master_frame, char==char_curr)
-        defender <<- subset(master_frame, cell==xy_cell)
-        
-        ## testing
-        # if( attacker$face == 'r') { atk_state <<- 'standard' }
-        # if( attacker$face == 'l') { atk_state <<- 'flipped' }
-        # if( attacker$face == 'u') { atk_state <<- 'inverted' }
-        # if( attacker$face == 'd') { atk_state <<- 'flipinv' }
-        
-        ## define ATK_STATE / DEF_STATE based on relative orientation of combatants
-        ## - lets start simple, tweak later
-        if(attacker$face != defender$face)
-        {
-          flip_flag <- FALSE
-        }else
-        {
-          flip_flag <- TRUE
-        }
-        
-        if(attacker$head != defender$head)
-        {
-          invert_flag <- TRUE
-        }else
-        {
-          invert_flag <- FALSE
-        }        
-        
-        if(!flip_flag & !invert_flag) { atk_state <<- 'standard' }
-        if(flip_flag & !invert_flag)  { atk_state <<- 'flipped' }
-        if(!flip_flag & invert_flag)  { atk_state <<- 'inverted' }
-        if(flip_flag & invert_flag)   { atk_state <<- 'flipinv' }
+        attacker <<- get_state(char_curr, xy_cell)[[1]]
+        defender <<- get_state(char_curr, xy_cell)[[2]]
+        atkstate <<- get_state(char_curr, xy_cell)[[3]]
         
         toggleModal(session, 'atk_modal')
         
@@ -652,7 +660,7 @@ shinyServer(function(input, output, session) {
         
         ## initial attack distribution plot
         output$atk_plot <- renderPlot({
-          p <- plot_combat(attacker, defender, show_atk=FALSE)
+          p <- plot_combat(attacker, defender, show_atk=FALSE)[[1]]
           return(p)
         })
       }
@@ -666,7 +674,10 @@ shinyServer(function(input, output, session) {
     
     ## update plot with attack outcome
     output$atk_plot <- renderPlot({
-       p <- plot_combat(attacker, defender, show_atk=TRUE)
+        roll <- plot_combat(attacker, defender, show_atk=TRUE)
+        p <- roll[[1]]
+        atk_val <<- roll[[2]]
+        def_val <<- roll[[3]]
       return(p)
     })
       
@@ -674,10 +685,16 @@ shinyServer(function(input, output, session) {
     ## resolve attack outcome
     output$atk_value <- renderPrint({
       
+      char_curr <- turn_order[turn_index]
+      char_pos  <- subset(master_frame, char==char_curr)
+      char_team <- char_pos$team
+
       atk_msg <- paste0('attack value = ', atk_val)
       if(atk_val <= def_val)
       {
         atk_msg <- paste0(atk_msg, ' did not get through defense, no damage done!')
+        
+        update_narrator(paste0(turn_order[turn_index], " attack \u2694  on ", defender$char, " failed"), char_team)
       }
       
       ## -----------------------------
@@ -689,6 +706,8 @@ shinyServer(function(input, output, session) {
       {
         new_health <- master_frame$health[which(master_frame$char == target)] - atk_val
         master_frame$health[which(master_frame$char == target)] <<- new_health
+        
+        update_narrator(paste0(turn_order[turn_index], " attack on ", defender$char, " succeeded: ", atk_val, " damage done"), char_team)
       }else
       {
         new_health <- master_frame$health[which(master_frame$char == target)]
@@ -698,6 +717,8 @@ shinyServer(function(input, output, session) {
       if(new_health <= 0)
       {
         master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
+        
+        update_narrator(paste0(target, " has been \u2620  murdered!  \u2620"), char_team)
         
         ## check for win condition
         if(nrow(subset(master_frame, team != char_team)) == 0)
@@ -778,47 +799,6 @@ shinyServer(function(input, output, session) {
   })    
     
   
-  ## ROTATING CHARACTERS
-  # observeEvent(input$rotate_right_button, {
-  #                
-  #   curr_head <- subset(master_frame, char==char_curr)$head
-  #   curr_face <- subset(master_frame, char==char_curr)$face
-  #   out_head <- subset(orientation_map, manipulation=='rotate_right' & head_start==curr_head & face_start==curr_face)$head_end
-  #   out_face <- subset(orientation_map, manipulation=='rotate_right' & head_start==curr_head & face_start==curr_face)$face_end
-  #   
-  #   ## update master frame
-  #   master_frame$head[which(master_frame$char == char_curr)] <<- out_head
-  #   master_frame$face[which(master_frame$char == char_curr)] <<- out_face
-  #   master_frame$icon[which(master_frame$char == char_curr)] <<- paste0('./sprites/', tolower(char_curr), '_', out_head, '_', out_face, '.png')
-  #   
-  #   ## update plot
-  #   output$playgrid <- renderPlot({
-  #     draw_grid(gpoly, master_frame)
-  #   })
-  #   
-  #   ## disable further rotation
-  # })
-  # 
-  # observeEvent(input$rotate_left_button, {
-  #   
-  #   curr_head <- subset(master_frame, char==char_curr)$head
-  #   curr_face <- subset(master_frame, char==char_curr)$face
-  #   out_head <- subset(orientation_map, manipulation=='rotate_left' & head_start==curr_head & face_start==curr_face)$head_end
-  #   out_face <- subset(orientation_map, manipulation=='rotate_left' & head_start==curr_head & face_start==curr_face)$face_end
-  #   
-  #   ## update master frame
-  #   master_frame$head[which(master_frame$char == char_curr)] <<- out_head
-  #   master_frame$face[which(master_frame$char == char_curr)] <<- out_face
-  #   master_frame$icon[which(master_frame$char == char_curr)] <<- paste0('./sprites/', tolower(char_curr), '_', out_head, '_', out_face, '.png')
-  #   
-  #   ## update plot
-  #   output$playgrid <- renderPlot({
-  #     draw_grid(gpoly, master_frame)
-  #   })
-  #   
-  #   ## disable further rotation
-  # })
-  
   observeEvent(input$flip_vertical_button, {
     
     curr_head <- subset(master_frame, char==char_curr)$head
@@ -836,6 +816,17 @@ shinyServer(function(input, output, session) {
       draw_grid(gpoly, master_frame)
     })
     
+    ## update attacker plot
+    attacker <<- get_state(char_curr, xy_cell)[[1]]
+    defender <<- get_state(char_curr, xy_cell)[[2]]
+    atkstate <<- get_state(char_curr, xy_cell)[[3]]
+    
+    output$atk_plot <- renderPlot({
+      p <- plot_combat(attacker, defender, show_atk=FALSE)[[1]]
+      return(p)
+    })
+    
+    update_narrator(paste0(char_curr, " has inverted  \u21c5"), char_team)
     ## disable further rotation
   })  
   
@@ -856,12 +847,19 @@ shinyServer(function(input, output, session) {
       draw_grid(gpoly, master_frame)
     })
     
+    ## update attacker plot
+    attacker <<- get_state(char_curr, xy_cell)[[1]]
+    defender <<- get_state(char_curr, xy_cell)[[2]]
+    atkstate <<- get_state(char_curr, xy_cell)[[3]]
+    
+    output$atk_plot <- renderPlot({
+      p <- plot_combat(attacker, defender, show_atk=FALSE)[[1]]
+      return(p)
+    })
+    
+    update_narrator(paste0(char_curr, " has flipped \u21c4"), char_team)
     ## disable further rotation
   })    
-  
-  
-  
-  
   
   
   ## hit END TURN button, increment turn order
@@ -876,46 +874,12 @@ shinyServer(function(input, output, session) {
       draw_grid(gpoly, master_frame)
     })
     
-    output$whos_turn <- renderText({
-      paste0(turn_order[turn_index], ", it's your turn")
-    })
-    
+    update_narrator(paste0(turn_order[turn_index], ", it's your turn"), char_team)
+
     ## reset attack modal
     output$atk_value <- renderPrint({
       return(NULL)
     })
-    
-
-      
-    
-    # output$current_char_icon <- renderImage({
-    #   #image <- subset(master_frame, char == input$char_tabs)$icon
-    #   image <- charsheet_display()[[1]]
-    #   list(src = image,
-    #        width = '50px',
-    #        height = '50px')
-    # }, deleteFile = FALSE)
-    # 
-    # output$current_char_health <- renderText({
-    #   paste0('Health: ', charsheet_display()[[2]])
-    #   #paste0('Health: ', subset(master_frame, char == input$char_tabs)$health)
-    # })
-    # 
-    # output$current_char_move <- renderText({
-    #   paste0('Movement Range: ', charsheet_display()[[3]])
-    #   #paste0('Movement Range: ', subset(master_frame, char == input$char_tabs)$move)
-    # })
-    # 
-    # output$current_char_atk <- renderText({
-    #   paste0('Attack Range: ', charsheet_display()[[4]])
-    #   # paste0('Attack Range: ', subset(master_frame, char == input$char_tabs)$atk_range)
-    # })  
-    
-    ## wipe plots - does not work, neither did hide('atk_plot') ... probably need to add reactivity
-    ## https://stackoverflow.com/questions/49495163/clear-button-in-shiny-app-is-not-clearing-plots
-    # output$atk_plot <- renderPlot({
-    #   ggplot()
-    # })
     
     ## reset no available attack helper message
     output$no_atk_msg <- renderPrint({
@@ -926,8 +890,157 @@ shinyServer(function(input, output, session) {
     updateActionButton(session, 'atk_button', label='Attack')
     updateActionButton(session, 'atk_roll', label='Attack!')
     
+    updateTabsetPanel(session, 'char_tabs', selected=char_curr)
+    
     enable('move_button')
     enable('atk_button')
     enable('atk_roll')
-  })   
+    
+    ## enable AI turn
+    if(char_team == 'sas')
+    {
+      ## show possible moves
+      char_moved <<- FALSE  
+      obstacs <- subset(master_frame, !char == char_curr)$cell
+      moves <- loc_map(char_pos$move, char_pos$xloc, char_pos$yloc, obstacs, focus='blockers', grid_size)
+      
+      output$playgrid <- renderPlot({
+        draw_grid(gpoly, master_frame, scope='show_move', moves=moves)
+      })  
+      
+      ## choose to move or not move - check for possible attacks
+      mobs <- subset(master_frame, team != char_team)$cell
+      atks <- loc_map(char_pos$atk_range, char_pos$xloc, char_pos$yloc, mobs, focus='targets', grid_size)
+      
+      delay(2000,
+        ## UPDATE PLOT
+        if(nrow(atks) > 0)
+        {
+          output$playgrid <- renderPlot({
+            draw_grid(gpoly, master_frame, scope='show_atk', atks=atks)
+          })
+          
+          ## choose random victim
+          xy_cell <- atks[sample(nrow(atks), 1), ]$cell   ## pick random victim, feed location into get_state()
+
+          attacker <<- get_state(char_curr, xy_cell)[[1]]
+          defender <<- get_state(char_curr, xy_cell)[[2]]
+          atkstate <<- get_state(char_curr, xy_cell)[[3]]
+
+          toggleModal(session, 'atk_modal')
+
+          output$whos_fighting <- renderPrint({
+            paste0(char_curr, ' is attacking ', defender$char, ' param1 = ', attacker$atk_param1, ' param2 = ', attacker$atk_param2, ' def = ', defender$def, '  ', toupper(atk_state))
+          })
+
+          ## initial attack distribution plot
+          output$atk_plot <- renderPlot({
+            p <- plot_combat(attacker, defender, show_atk=FALSE)[[1]]
+            return(p)
+          })
+         
+          
+          
+          
+          ## RESOLVE ATTACK
+          updateActionButton(session, 'atk_roll', label='Attack Complete')
+          shinyjs::disable('atk_roll')
+          
+          ## update plot with attack outcome
+          output$atk_plot <- renderPlot({
+            roll <- plot_combat(attacker, defender, show_atk=TRUE)
+            p <- roll[[1]]
+            atk_val <<- roll[[2]]
+            def_val <<- roll[[3]]
+            return(p)
+          })
+          
+          ## resolve attack outcome
+          output$atk_value <- renderPrint({
+            
+            char_curr <- turn_order[turn_index]
+            char_pos  <- subset(master_frame, char==char_curr)
+            char_team <- char_pos$team
+            
+            atk_msg <- paste0('attack value = ', atk_val)
+            if(atk_val <= def_val)
+            {
+              atk_msg <- paste0(atk_msg, ' did not get through defense, no damage done!')
+              
+              update_narrator(paste0(turn_order[turn_index], " attack \u2694  on ", defender$char, " failed"), char_team)
+            }
+            
+            ## -----------------------------
+            ## update health values
+            ## -----------------------------
+            target <- master_frame$char[which(master_frame$cell == xy_cell)]
+            
+            if(atk_val > def_val)
+            {
+              new_health <- master_frame$health[which(master_frame$char == target)] - atk_val
+              master_frame$health[which(master_frame$char == target)] <<- new_health
+              
+              update_narrator(paste0(turn_order[turn_index], " attack \u2694  on ", defender$char, " succeeded: ", atk_val, " damage done"), char_team)
+            }else
+            {
+              new_health <- master_frame$health[which(master_frame$char == target)]
+            }
+            
+            ## murder!
+            if(new_health <= 0)
+            {
+              master_frame <<- subset(master_frame, char != target)     ## remove dead person from master_frame
+              
+              update_narrator(paste0(target, " has been \u2620  murdered!  \u2620"), char_team)
+              
+              ## check for win condition
+              if(nrow(subset(master_frame, team != char_team)) == 0)
+              {
+                sendSweetAlert(
+                  session = session,
+                  title = paste0('Team ', char_team, ' wins!'),
+                  type= 'success'
+                )
+              }
+              
+              turn_order <<- turn_order[turn_order != target]           ## remove dead person from turn order
+              turn_index <<- min(which(turn_order == char_curr, TRUE))  ## reset turn index
+            }
+            
+            return(atk_msg)
+          })
+          
+          ## remove red attack highlights
+          output$playgrid <- renderPlot({
+            draw_grid(gpoly, master_frame)
+          })
+          
+          char_attacked <<- TRUE 
+          updateActionButton(session, 'atk_button', label='Attack Complete')
+          shinyjs::disable('atk_button')          
+          
+          
+           
+        }
+      )
+      
+      
+      
+      
+      
+    }
+      
+  })
+  
+  
+
+    
+    
+    
+    
+    
+    
+    
+    
+  
 })

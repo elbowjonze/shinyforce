@@ -11,51 +11,20 @@ library(slickR)
 library(ggplot2)
 library(grid)
 library(png)
-#library(LaplacesDemon)  ## for logit-normal distribution
-
-
-# charsheet_filler <- function(char){
-#   
-#   #line <- subset(master_frame, char==char)
-#   
-#   tabPanel(title=char, 
-
-#     # br(),
-#     # imageOutput('current_char_icon', height='50px', width='50px'),
-#     # br(),
-#     # verbatimTextOutput('current_char_health'),
-#     # verbatimTextOutput('current_char_move'),
-#     # verbatimTextOutput('current_char_atk'),
-#     # br(),
-#     # actionBttn('move_button',
-#     #            label = 'Move',
-#     #            style = 'material-flat'),
-#     # actionBttn('atk_button',
-#     #            label = 'Attack',
-#     #            style = 'material-flat'),
-#     # verbatimTextOutput('no_atk_msg'),
-#     # br(),
-#     # br(),
-#     # actionBttn('flip_vertical_button',
-#     #            label = 'Flip',
-#     #            style = 'material-flat',
-#     #            icon = icon('exchange')),
-#     # actionBttn('flip_horizontal_button',
-#     #            label = 'Invert',
-#     #            style = 'material-flat',
-#     #            icon = icon('retweet')),
-#     # br(),
-#     # br(),
-#     # actionBttn('end_turn',
-#     #            label = 'End Turn',
-#     #            style = 'material-flat')
-#   )
-# }
+library(DT)
 
 
 shinyUI(
   fluidPage(
     
+    # tags$style(
+    #   HTML(".tabbable > .nav > li[class=active] > a {
+    #        background-color: #000;
+    #        color: #FFF;
+    #     }")),
+    
+    tags$style(HTML('thead { display:none; }' )),  ## removes header from narration datatable
+
     useShinyjs(), 
     useSweetAlert(), 
     
@@ -67,18 +36,43 @@ shinyUI(
     br(),
     br(),
     actionButton('intro_slides', 'Prologue'),
-    bsModal('atk_modal', 'TESTING', 'no_trigger', size='large',
+    # bsModal('atk_modal', 'TESTING', 'no_trigger', size='large',   ## combat modal
+    #         verbatimTextOutput('whos_fighting'),
+    #         plotOutput('atk_plot'),
+    #         actionBttn('flip_vertical_button',
+    #                    label = 'Flip',
+    #                    style = 'material-flat',
+    #                    icon = icon('exchange')),
+    #         actionBttn('flip_horizontal_button',
+    #                    label = 'Invert',
+    #                    style = 'material-flat',
+    #                    icon = icon('retweet')),
+    #         actionBttn('atk_roll', 'Attack!'),
+    #         verbatimTextOutput('atk_value')
+    # ),
+    
+    ## testing UI stuff
+    bsModal('atk_modal', 'TESTING', 'no_trigger', size='large',   ## combat modal
             verbatimTextOutput('whos_fighting'),
             plotOutput('atk_plot'),
+            actionBttn('flip_vertical_button',
+                       label = 'Flip',
+                       style = 'material-flat',
+                       icon = icon('exchange')),
+            actionBttn('flip_horizontal_button',
+                       label = 'Invert',
+                       style = 'material-flat',
+                       icon = icon('retweet')),
             actionBttn('atk_roll', 'Attack!'),
             verbatimTextOutput('atk_value')
-    ),
+    ),    
+    
+    
     br(),
     br(),
     fluidRow(
-      verbatimTextOutput('helper1'),
+      #verbatimTextOutput('helper1'),
       column(width = 3,
-        textOutput('whos_turn'),
         tabsetPanel(id='char_tabs', type='tabs',
           tabPanel('Alex', value='Alex'),
           tabPanel('Tex', value='Tex'),
@@ -86,11 +80,11 @@ shinyUI(
           tabPanel('Rocko', value='Rocko')
         ),
         br(),
-        imageOutput('current_char_icon', height='50px', width='50px'),
+        imageOutput('char_icon', height='50px', width='50px'),
         br(),
-        verbatimTextOutput('current_char_health'),
-        verbatimTextOutput('current_char_move'),
-        verbatimTextOutput('current_char_atk'),
+        verbatimTextOutput('char_health'),
+        verbatimTextOutput('char_move'),
+        verbatimTextOutput('char_atk'),
         br(),
         actionBttn('move_button',
                    label = 'Move',
@@ -101,16 +95,16 @@ shinyUI(
         verbatimTextOutput('no_atk_msg'),
         br(),
         br(),
-        actionBttn('flip_vertical_button',
-                   label = 'Flip',
-                   style = 'material-flat',
-                   icon = icon('exchange')),
-        actionBttn('flip_horizontal_button',
-                   label = 'Invert',
-                   style = 'material-flat',
-                   icon = icon('retweet')),
-        br(),
-        br(),
+        # actionBttn('flip_vertical_button',
+        #            label = 'Flip',
+        #            style = 'material-flat',
+        #            icon = icon('exchange')),
+        # actionBttn('flip_horizontal_button',
+        #            label = 'Invert',
+        #            style = 'material-flat',
+        #            icon = icon('retweet')),
+        # br(),
+        # br(),
         actionBttn('end_turn',
                    label = 'End Turn',
                    style = 'material-flat')
@@ -124,8 +118,11 @@ shinyUI(
                    click = 'grid_click',
                    hover = 'grid_hover'
         ),
-        verbatimTextOutput('helper2'),
-        tableOutput('helper3')
+        br(),
+        h3('BATTLE LOG'),
+        fluidRow(
+          column(width = 7, DTOutput('narrator'))
+        )
       )
     )
   )
