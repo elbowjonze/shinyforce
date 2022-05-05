@@ -1,7 +1,10 @@
+
 options(stringsAsFactors = FALSE)
 options(scipen=999)
+options(shiny.usecairo = FALSE)  ## upgrade to R 4.2 screwed up Cairo graphics
 
 source('funcs/mapper.R')
+source('funcs/move_ai.R')
 
 library(shiny)
 library(shinyWidgets)
@@ -12,6 +15,11 @@ library(ggplot2)
 library(grid)
 library(png)
 library(DT)
+library(Cairo)
+
+
+atk_plot_width <<- 200
+atk_plot_height <<- 200
 
 
 shinyUI(
@@ -33,6 +41,10 @@ shinyUI(
                ".shiny-output-error { visibility: hidden; }",
                ".shiny-output-error:before { visibility: hidden; }"
     ),
+    tags$style(type="text/css",
+               ".bttn-material-flat.bttn-default { font-size: 12px; }",
+               ".bttn-unite.bttn-md { font-size: 12px; }"
+    ),
     br(),
     br(),
     actionButton('intro_slides', 'Prologue'),
@@ -50,29 +62,11 @@ shinyUI(
     #         actionBttn('atk_roll', 'Attack!'),
     #         verbatimTextOutput('atk_value')
     # ),
-    
-    ## testing UI stuff
-    bsModal('atk_modal', 'TESTING', 'no_trigger', size='large',   ## combat modal
-            verbatimTextOutput('whos_fighting'),
-            plotOutput('atk_plot'),
-            actionBttn('flip_vertical_button',
-                       label = 'Flip',
-                       style = 'material-flat',
-                       icon = icon('exchange')),
-            actionBttn('flip_horizontal_button',
-                       label = 'Invert',
-                       style = 'material-flat',
-                       icon = icon('retweet')),
-            actionBttn('atk_roll', 'Attack!'),
-            verbatimTextOutput('atk_value')
-    ),    
-    
-    
     br(),
     br(),
     fluidRow(
       #verbatimTextOutput('helper1'),
-      column(width = 3,
+      column(width = 2,
         tabsetPanel(id='char_tabs', type='tabs',
           tabPanel('Alex', value='Alex'),
           tabPanel('Tex', value='Tex'),
@@ -109,8 +103,8 @@ shinyUI(
                    label = 'End Turn',
                    style = 'material-flat')
       ),
-      column(width = 1),
-      column(width = 7,
+      #column(width = 1),
+      column(width = 4,
         bsModal('modal_intro', 'PLACEHOLDER MODAL FOR INTRO SLIDE DECK', 'intro_slides', size='large',
                 slickROutput('slick_intro', height='400px', width='800px')
         ),
@@ -121,9 +115,24 @@ shinyUI(
         br(),
         h3('BATTLE LOG'),
         fluidRow(
-          column(width = 7, DTOutput('narrator'))
+          column(width = 12, DTOutput('narrator'))
         )
-      )
+      ),
+      column(width = 1),
+      column(width = 4,
+        verbatimTextOutput('whos_fighting'),
+        plotOutput('atk_plot', width=atk_plot_width, height=atk_plot_height),
+        actionBttn('flip_vertical_button',
+                  label = 'Flip',
+                  style = 'material-flat',
+                  icon = icon('exchange')),
+        actionBttn('flip_horizontal_button',
+                  label = 'Invert',
+                  style = 'material-flat',
+                  icon = icon('retweet')),
+        actionBttn('atk_roll', 'Attack!'),
+        verbatimTextOutput('atk_value')
+      )   
     )
   )
 )
